@@ -314,7 +314,9 @@ foreach ($relative in $missing) {
     Write-Host "  create $relative"
 }
 
-foreach ($relative in $expected.Keys) {
+# Zapisuj pouze to, co se skutečně změnilo — sync je tak idempotentní
+# a nezpůsobuje zbytečné změny mtime (a tím pádem falešné "modified" v gitu).
+foreach ($relative in (@($changed) + @($missing))) {
     $full = Join-Path $root ($relative -replace '/', '\')
     Write-Utf8File -Path $full -Content $expected[$relative]
 }
@@ -344,8 +346,16 @@ foreach ($base in @((Join-Path $cursorRoot 'rules/generated'), (Join-Path $curso
 }
 
 $manifestKeys = @($expected.Keys | Sort-Object)
-$manifestJson = ConvertTo-Json -InputObject ([string[]]$manifestKeys) -Depth 3
-Write-Utf8File -Path $manifestPath -Content ($manifestJson + "`n")
+$manifestContent = (ConvertTo-Json -InputObject ([string[]]$manifestKeys) -Depth 3) + "`n"
+
+$existingManifest = $null
+if (Test-Path -LiteralPath $manifestPath) {
+    $existingManifest = Convert-ToLf (Read-TextFile $manifestPath)
+}
+
+if ($existingManifest -ne (Convert-ToLf $manifestContent)) {
+    Write-Utf8File -Path $manifestPath -Content $manifestContent
+}
 
 Write-Host ""
 Write-Host "Synchronizace dokončena: $($layers.Count) vrstev, $($expected.Count) generovaných souborů." -ForegroundColor Green
