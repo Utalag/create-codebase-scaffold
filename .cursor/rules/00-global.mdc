@@ -1,0 +1,35 @@
+---
+description: Globální pravidla repozitáře, mapa vrstev a směr závislostí
+alwaysApply: true
+---
+
+# Globální pravidla repozitáře
+
+Zdroj pravdy pro instrukce je `AGENTS.md` v rootu a `AGENTS.md` v jednotlivých
+vrstvách. Toto pravidlo je pouze stručná připomínka, ne náhrada.
+
+## Vrstvy a směr závislostí
+
+Závislosti smějí směřovat pouze dovnitř:
+
+- `presentation` -> `application` -> `domain` -> `shared`
+- `infrastructure` -> `application` (nikdy naopak)
+- `shared` nesmí záviset na žádné jiné vrstvě
+
+Nikdy nevytvářej závislost z `domain` nebo `application` na `infrastructure`.
+
+## Agentní konfigurace
+
+- Zdroj pravdy: `src/<vrstva>/.cursor/`
+- Generováno: `.cursor/rules/generated/**`, prefixovaní agenti a skills v rootu
+- Needituj generované soubory. Po změně zdroje spusť:
+
+  ```powershell
+  pwsh -File scripts/sync-agent-config.ps1
+  ```
+
+## Before finishing work
+
+- Ověř směr závislostí mezi vrstvami.
+- Pokud jsi měnil `src/<vrstva>/.cursor/`, ověř `pwsh -File scripts/sync-agent-config.ps1 -Check`.
+- Netriviální rozhodnutí zapiš jako ADR do `src/<vrstva>/docs/decisions/`.

@@ -1,0 +1,29 @@
+---
+description: "Infrastructure layer - guardrails a konvence vrstvy"
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Infrastructure — standardy vrstvy
+
+## Odpovědnost
+
+Implementace portů a veškerý přístup k vnějšímu světu: databáze, HTTP klienti, filesystem, fronty, cache, e-maily.
+
+## Guardrails
+
+- Vlastní veškerý přístup k vnějšímu světu. Žádná jiná vrstva nesmí volat vnějšek přímo.
+- Implementuje porty definované v `application`; nikdy je nedefinuje ani nemění.
+- Neobsahuje business logiku — pouze překlad mezi doménovým modelem a vnějškem.
+- Chyby adaptérů překládá na explicitní chyby doménového typu.
+- Konfigurace a tajemství se čtou z prostředí, nikdy nejsou zadrátovaná v kódu.
+- Každý adaptér je testovatelný proti reálné závislosti (testcontainers, lokální služba).
+
+## Směr závislostí
+
+Smí záviset na `application`, `domain` a `shared`. Nikdy nesmí záviset na `presentation`.
+
+## Kontext
+
+Úplná pravidla jsou v `AGENTS.md` (root), `src/AGENTS.md` a `src/infrastructure/AGENTS.md`.
+Při práci ve vrstvě čti všechny tři úrovně; konkrétnější má přednost.

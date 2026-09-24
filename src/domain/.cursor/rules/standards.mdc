@@ -1,0 +1,29 @@
+---
+description: "Domain layer - guardrails a konvence vrstvy"
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Domain — standardy vrstvy
+
+## Odpovědnost
+
+Čistá business logika. Entita, value object, doménová služba a invarianty. Vrstva neví nic o tom, jak je aplikace spuštěna ani odkud přicházejí data.
+
+## Guardrails
+
+- Žádné I/O: nesmí sahat na databázi, síť, filesystem, systémový čas ani náhodu.
+- Žádné frameworky, anotace ani serializace závislé na infrastruktuře.
+- Veškerá logika je deterministická a testovatelná bez mocků a bez běžícího prostředí.
+- Vnější vlivy (čas, ID, konfigurace) přicházejí jako parametry, nikdy jako volání uvnitř.
+- Entita chrání své invarianty: neplatný stav nesmí být možné vytvořit.
+- Doménové chyby jsou explicitní typy, ne obecné výjimky ani návratové kódy.
+
+## Směr závislostí
+
+Smí záviset pouze na `shared`. Nikdy nesmí importovat `application`, `infrastructure` ani `presentation`.
+
+## Kontext
+
+Úplná pravidla jsou v `AGENTS.md` (root), `src/AGENTS.md` a `src/domain/AGENTS.md`.
+Při práci ve vrstvě čti všechny tři úrovně; konkrétnější má přednost.

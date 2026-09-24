@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Ověří, že root .cursor/ je v souladu se zdroji ve vrstvách.
+  # Pokud ne, někdo editoval generované soubory nebo zapomněl spustit sync.
+  agent-config:
+    name: Agent config in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ověř soulad root .cursor se zdroji ve vrstvách
+        shell: pwsh
+        run: ./scripts/sync-agent-config.ps1 -Check
+
+  # Dynamicky objeví vrstvy, aby nová vrstva nevyžadovala ruční úpravu CI.
+  discover-layers:
+    name: Discover layers
+    runs-on: ubuntu-latest
+    outputs:
+      layers: ${{ steps.list.outputs.layers }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sestav seznam vrstev
+        id: list
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $layers = @(
+            Get-ChildItem -Directory src |
+              Where-Object { Test-Path (Join-Path $_.FullName 'AGENTS.md') } |
+              Select-Object -ExpandProperty Name |
+              Sort-Object
+          )
+          if ($layers.Count -eq 0) { throw 'Nenalezena žádná vrstva v src/.' }
+          $json = ConvertTo-Json -InputObject ([string[]]$layers) -Compress
+          Write-Host "Nalezené vrstvy: $json"
+          "layers=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+  # Každá vrstva se ověří a otestuje samostatně a paralelně.
+  layers:
+    name: Layer ${{ matrix.layer }}
+    needs: discover-layers
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        layer: ${{ fromJson(needs.discover-layers.outputs.layers) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ověř strukturu a agentní konfiguraci vrstvy
+        shell: pwsh
+        run: ./scripts/verify-layer.ps1 -Layer ${{ matrix.layer }}
+
+      - name: Testy vrstvy
+        shell: pwsh
+        run: ./scripts/test-layer.ps1 -Layer ${{ matrix.layer }}

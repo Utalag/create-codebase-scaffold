@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "pwsh -NoProfile -File .cursor/hooks/sync-on-edit.ps1",
+        "matcher": "Write|Edit",
+        "timeout": 60
+      }
+    ]
+  }
+}

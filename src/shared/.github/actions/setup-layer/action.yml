@@ -1,0 +1,17 @@
+name: Setup Shared layer
+description: Ověří strukturu a agentní konfiguraci vrstvy shared.
+
+runs:
+  using: composite
+  steps:
+    - name: Ověř strukturu a agentní konfiguraci vrstvy
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $verify = Join-Path $env:GITHUB_WORKSPACE 'scripts/verify-layer.ps1'
+        if (Test-Path -LiteralPath $verify) {
+          & $verify -Layer 'shared'
+        }
+        else {
+          Write-Host "scripts/verify-layer.ps1 není k dispozici (standalone vrstva) - přeskakuji strukturální kontrolu."
+        }
