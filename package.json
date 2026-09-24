@@ -33,5 +33,14 @@
     "claude",
     "codex"
   ],
-  "license": "MIT"
+  "author": "Utalag",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Utalag/create-codebase-scaffold.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Utalag/create-codebase-scaffold/issues"
+  },
+  "homepage": "https://github.com/Utalag/create-codebase-scaffold#readme"
 }

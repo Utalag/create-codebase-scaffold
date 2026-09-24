@@ -1,5 +1,8 @@
 # create-codebase-scaffold
 
+[![CI](https://github.com/Utalag/create-codebase-scaffold/actions/workflows/ci.yml/badge.svg)](https://github.com/Utalag/create-codebase-scaffold/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Generátor jazykově neutrálního, vrstveného scaffoldu připraveného pro vývoj
 řízený AI agenty.
 
