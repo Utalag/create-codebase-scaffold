@@ -95,7 +95,9 @@ function Write-Utf8File {
         New-Item -ItemType Directory -Force -Path $dir | Out-Null
     }
 
-    [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+    # Vždy zapisuj LF, aby byl výstup na Windows a Linuxu bajtově shodný
+    # (ConvertTo-Json na Windows produkuje CRLF).
+    [System.IO.File]::WriteAllText($Path, (Convert-ToLf $Content), $utf8NoBom)
 }
 
 function Get-LayerDirectories {
