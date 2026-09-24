@@ -1,62 +1,111 @@
-# Codebase Setup
+# create-codebase-scaffold
 
-Univerzální, jazyk-agnostická šablona repozitáře pro vývoj řízený AI agenty.
+Generátor jazykově neutrálního, vrstveného scaffoldu připraveného pro vývoj
+řízený AI agenty.
 
-Každá architektonická vrstva v `src/` si nese vlastní guardrails pro agenty
-(`.cursor`, `.github`, vnořené `AGENTS.md`), vlastní testy a vlastní dokumentaci.
-Společná pravidla jsou v `AGENTS.md` v rootu a v `src/AGENTS.md`.
+Do zvolené složky vygeneruje **čistý projekt**: vrstvy v `src/`, guardrails pro
+agenty (`AGENTS.md`, `.cursor/`), skripty pro správu vrstev, dokumentaci a CI.
+Vygenerovaný projekt neobsahuje žádné informace o tom, jak generátor funguje —
+jen to, co patří reálnému projektu.
 
-## Rychlý start
+## Instalace
 
-```powershell
-# 1. Vygeneruj chybějící/aktualizuj root agentní konfiguraci ze zdrojů ve vrstvách
-pwsh -File scripts/sync-agent-config.ps1
+Generátor nemá žádné závislosti — stačí Node.js >= 20. Balíček zatím není
+publikovaný v npm registru, takže se spouští ze zdrojů:
 
-# 2. Ověř, že konfigurace není zastaralá (používá CI)
-pwsh -File scripts/sync-agent-config.ps1 -Check
-
-# 3. Založ novou vrstvu
-pwsh -File scripts/new-layer.ps1 -Name billing
-
-# 4. Spusť testy vrstvy
-pwsh -File scripts/test-layer.ps1 -Layer domain
+```bash
+git clone <adresa-repa> create-codebase-scaffold && cd create-codebase-scaffold
+node bin/create.js my-app
 ```
 
-## Struktura
+Podrobný postup (včetně `npx`, globální instalace, ověření a odinstalace):
+[`docs/install.md`](docs/install.md).
+
+## Použití
+
+```bash
+# interaktivní průvodce
+node bin/create.js my-app
+
+# neinteraktivně
+node bin/create.js my-api --preset hexagonal --tooling node
+node bin/create.js app --layers Domain,Application,Adapters,Shared \
+  --machinery full --agents cursor,copilot,claude
+```
+
+Až bude balíček publikovaný, bude fungovat i `npx create-codebase-scaffold my-app`
+se stejnými volbami.
+
+## Volby
+
+| Volba | Hodnoty | Výchozí |
+| --- | --- | --- |
+| `--preset` | `clean`, `hexagonal`, `layered`, `vertical-slice`, `custom` | `clean` |
+| `--layers` | volný seznam PascalCase vrstev, přebíjí preset | — |
+| `--tooling` | `pwsh`, `node` | `pwsh` |
+| `--machinery` | `full`, `lean` | `full` |
+| `--agents` | `cursor`, `copilot`, `codex`, `claude`, nebo `all` | `cursor,codex` |
+| `--ci` / `--no-ci` | vygenerovat CI workflow | `--ci` |
+| `--dry-run` | jen vypsat, co by se zapsalo | — |
+| `--force`, `--overwrite` | přepsat i existující soubory | nikdy nepřepisovat |
+| `--git-init` | po vygenerování spustit `git init` | — |
+| `-y`, `--yes` | neptat se, použít výchozí hodnoty | — |
+
+## Architektonické presety
+
+| Preset | Vrstvy |
+| --- | --- |
+| `clean` | Domain, Application, Infrastructure, Presentation, Shared |
+| `hexagonal` | Domain, Application, Adapters, Shared |
+| `layered` | Presentation, Business, Data, Shared |
+| `vertical-slice` | Features, Infrastructure, Shared |
+| `custom` | cokoli přes `--layers` |
+
+Směr závislostí je součástí presetu a promítá se do `AGENTS.md`, `src/AGENTS.md`
+a `docs/layers.md` vygenerovaného projektu.
+
+## Rozsah agentní konfigurace
+
+- `machinery=full` — každá vrstva vlastní svou agentní konfiguraci v
+  `src/<Layer>/.cursor/`; root `.cursor/` je její generované zrcadlo a drží se
+  v souladu skriptem (`sync-agent-config`) a hookem.
+- `machinery=lean` — agentní konfigurace žije jen v root `.cursor/`, bez zrcadla,
+  bez sync skriptu a bez hooků.
+
+Podrobnosti: [`docs/agent-config.md`](docs/agent-config.md).
+
+## Nedestruktivnost
+
+Generátor nikdy nepřepíše existující soubor. Opakované spuštění nad hotovým
+projektem je bezpečné a nic nezmění; přepsání vynutíš jen `--force`. Verifikační
+a testovací skripty vygenerovaného projektu jsou striktně read-only.
+
+## Co vygenerovaný projekt dostane
+
+- `AGENTS.md`, `src/AGENTS.md` a `AGENTS.md` v každé vrstvě — instrukce pro agenty.
+- `src/<Layer>/` s `README.md`, `docs/`, `src/`, `tests/` a (u `full`) `.cursor/`
+  a `.github/`.
+- `scripts/` — `new-layer`, `verify-layer`, `test-layer`, `sync-agent-config`
+  (u `full`), šablona vrstvy a guardrails; plus `README.md` (EN) a `README.cs.md` (CZ).
+- `.cursor/` podle zvolených ekosystémů, `CLAUDE.md`, `.github/copilot-instructions.md`.
+- `docs/`, `.editorconfig`, `.gitignore`, `.scaffold.json` a CI workflow.
+
+## Vývoj generátoru
+
+```bash
+npm test                 # testy generátoru
+node bin/create.js .tmp  # ruční vygenerování do .tmp
+```
+
+Rozložení repa:
 
 ```text
-AGENTS.md              # globální instrukce pro agenty
-src/
-  AGENTS.md            # společná pravidla všech vrstev
-  domain/              # čistá business logika, žádné I/O
-  application/         # orchestrace use-case, přes porty
-  infrastructure/      # implementace portů, veškerý vnější přístup
-  presentation/        # vstupní bod aplikace, validace a mapování
-  shared/              # průřezové primitivy bez závislostí
-.cursor/               # aktivní konfigurace pro celý repozitář
-.github/workflows/     # CI
-scripts/               # nástroje pro správu šablony
-docs/                  # projektová dokumentace
+bin/create.js      # CLI vstup
+lib/               # logika generátoru (CLI, presety, šablony, zápis)
+templates/         # šablony generovaného projektu
+test/              # testy generátoru
+examples/          # referenční vygenerované projekty
+docs/              # dokumentace generátoru
 ```
 
-## Princip: konfigurace vrstvy je zdroj pravdy
-
-```mermaid
-flowchart LR
-  A["src/vrstva/.cursor/rules"] --> S["sync-agent-config.ps1"]
-  B["src/vrstva/.cursor/agents"] --> S
-  C["src/vrstva/.cursor/skills"] --> S
-  S --> D[".cursor/rules/generated/vrstva"]
-  S --> E[".cursor/agents"]
-  S --> F[".cursor/skills"]
-```
-
-Díky tomu funguje konfigurace v obou režimech: když otevřeš celý repozitář
-(aktivní je root `.cursor/`) i když otevřeš samotnou vrstvu jako workspace
-(aktivní je `.cursor/` uvnitř vrstvy).
-
-## Konvence pro agenty
-
-- Needituj `.cursor/rules/generated/**` — je generováno.
-- Po změně `src/<vrstva>/.cursor/` spusť sync.
-- Dodrž směr závislostí mezi vrstvami (viz `AGENTS.md`).
+Viz [`docs/`](docs/README.md).

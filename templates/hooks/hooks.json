@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "__HOOK_COMMAND__",
+        "matcher": "Write|Edit",
+        "timeout": 60
+      }
+    ]
+  }
+}

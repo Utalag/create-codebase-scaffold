@@ -10,59 +10,68 @@ permissions:
   contents: read
 
 jobs:
-  # Ověří, že root .cursor/ je v souladu se zdroji ve vrstvách.
-  # Pokud ne, někdo editoval generované soubory nebo zapomněl spustit sync.
-  agent-config:
-    name: Agent config in sync
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Ověř soulad root .cursor se zdroji ve vrstvách
-        shell: pwsh
-        run: ./scripts/sync-agent-config.ps1 -Check
-
-  # Dynamicky objeví vrstvy, aby nová vrstva nevyžadovala ruční úpravu CI.
-  discover-layers:
-    name: Discover layers
-    runs-on: ubuntu-latest
-    outputs:
-      layers: ${{ steps.list.outputs.layers }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Sestav seznam vrstev
-        id: list
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $layers = @(
-            Get-ChildItem -Directory src |
-              Where-Object { Test-Path (Join-Path $_.FullName 'AGENTS.md') } |
-              Select-Object -ExpandProperty Name |
-              Sort-Object
-          )
-          if ($layers.Count -eq 0) { throw 'Nenalezena žádná vrstva v src/.' }
-          $json = ConvertTo-Json -InputObject ([string[]]$layers) -Compress
-          Write-Host "Nalezené vrstvy: $json"
-          "layers=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-
-  # Každá vrstva se ověří a otestuje samostatně a paralelně.
-  layers:
-    name: Layer ${{ matrix.layer }}
-    needs: discover-layers
+  # Testy generátoru: presety, názvy, render a end-to-end generování.
+  test:
+    name: Testy generátoru (node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        layer: ${{ fromJson(needs.discover-layers.outputs.layers) }}
+        node: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ověř strukturu a agentní konfiguraci vrstvy
-        shell: pwsh
-        run: ./scripts/verify-layer.ps1 -Layer ${{ matrix.layer }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
 
-      - name: Testy vrstvy
+      - name: Spusť testy
+        run: npm test
+
+  # Ověří, že vygenerovaný projekt projde vlastními kontrolami v obou toolinzích.
+  generated-project:
+    name: Vygenerovaný projekt (node i pwsh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Vygeneruj a ověř projekt s node toolingem
+        run: |
+          set -euo pipefail
+          node bin/create.js "$RUNNER_TEMP/app-node" \
+            --preset clean --tooling node --machinery full --agents all --yes
+          cd "$RUNNER_TEMP/app-node"
+          node scripts/sync-agent-config.mjs
+          node scripts/sync-agent-config.mjs --check
+          node scripts/verify-layer.mjs --layer Domain
+          node scripts/test-layer.mjs --layer Domain
+          node scripts/new-layer.mjs --name Adapters
+          node scripts/sync-agent-config.mjs --check
+
+      - name: Vygeneruj a ověř projekt s pwsh toolingem
         shell: pwsh
-        run: ./scripts/test-layer.ps1 -Layer ${{ matrix.layer }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          node bin/create.js "$env:RUNNER_TEMP/app-pwsh" `
+            --preset layered --tooling pwsh --machinery full --agents all --yes
+          Set-Location "$env:RUNNER_TEMP/app-pwsh"
+          pwsh -File scripts/sync-agent-config.ps1
+          pwsh -File scripts/sync-agent-config.ps1 -Check
+          pwsh -File scripts/verify-layer.ps1 -Layer Business
+          pwsh -File scripts/test-layer.ps1 -Layer Business
+          pwsh -File scripts/new-layer.ps1 -Name Adapters
+          pwsh -File scripts/sync-agent-config.ps1 -Check
+
+      - name: Vygeneruj odlehčenou variantu bez zrcadla
+        run: |
+          set -euo pipefail
+          node bin/create.js "$RUNNER_TEMP/app-lean" \
+            --preset vertical-slice --tooling node --machinery lean --agents cursor,copilot --yes
+          cd "$RUNNER_TEMP/app-lean"
+          test ! -f scripts/sync-agent-config.mjs
+          test ! -d src/Features/.cursor
+          node scripts/verify-layer.mjs --layer Features

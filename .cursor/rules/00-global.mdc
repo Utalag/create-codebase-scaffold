@@ -1,35 +1,33 @@
 ---
-description: Globální pravidla repozitáře, mapa vrstev a směr závislostí
+description: "create-codebase-scaffold - pravidla vyvoje generatoru"
+globs: ["**/*"]
 alwaysApply: true
 ---
 
-# Globální pravidla repozitáře
+# Vývoj generátoru
 
-Zdroj pravdy pro instrukce je `AGENTS.md` v rootu a `AGENTS.md` v jednotlivých
-vrstvách. Toto pravidlo je pouze stručná připomínka, ne náhrada.
+Zdroj pravdy pro instrukce je `AGENTS.md`. Toto pravidlo je jen stručná
+připomínka, ne náhrada.
 
-## Vrstvy a směr závislostí
+## Kde se co mění
 
-Závislosti smějí směřovat pouze dovnitř:
+- Obsah vygenerovaného projektu: `templates/`.
+- Logika a složení výstupu: `lib/` (zejména `lib/generator.js`).
+- Vrstvy, archetypy a guardrails: `lib/presets.js`.
+- Ekosystémy a CLI volby: `lib/cli.js` a `lib/generator.js`.
+- Meta-informace o generátoru: `docs/`, nikdy ne do `templates/`.
 
-- `presentation` -> `application` -> `domain` -> `shared`
-- `infrastructure` -> `application` (nikdy naopak)
-- `shared` nesmí záviset na žádné jiné vrstvě
+## Nepřekročitelné zásady
 
-Nikdy nevytvářej závislost z `domain` nebo `application` na `infrastructure`.
+- Nedestruktivnost: existující soubor se nepřepíše bez `--force`.
+- `verify-layer` a `test-layer` ve vygenerovaném projektu nikdy nezapisují.
+- Vždy PascalCase název vrstvy, kebab-case slug jen pro názvy artefaktů.
+- Obě tooling varianty (pwsh i node) a oba režimy `machinery` (full i lean)
+  musí zůstat funkčně shodné.
 
-## Agentní konfigurace
+## Před dokončením
 
-- Zdroj pravdy: `src/<vrstva>/.cursor/`
-- Generováno: `.cursor/rules/generated/**`, prefixovaní agenti a skills v rootu
-- Needituj generované soubory. Po změně zdroje spusť:
-
-  ```powershell
-  pwsh -File scripts/sync-agent-config.ps1
-  ```
-
-## Before finishing work
-
-- Ověř směr závislostí mezi vrstvami.
-- Pokud jsi měnil `src/<vrstva>/.cursor/`, ověř `pwsh -File scripts/sync-agent-config.ps1 -Check`.
-- Netriviální rozhodnutí zapiš jako ADR do `src/<vrstva>/docs/decisions/`.
+- `npm test` prochází.
+- Vygenerovaný projekt projde `sync-agent-config --check` a `verify-layer`.
+- Ve výstupu nezůstaly nerozřešené tokeny `__TOKEN__` mimo
+  `scripts/layer-template/**`.

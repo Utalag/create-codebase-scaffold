@@ -1,108 +1,71 @@
-# Agentní konfigurace napříč vrstvami
+# Agentní konfigurace ve vygenerovaném projektu
 
-Tento dokument vysvětluje, proč je repozitář uspořádán takto a jak s konfigurací
-pracovat. Je to klíčová část šablony — bez pochopení tohoto mechanismu se
-konfigurace vrstev rozejde s root `.cursor/`.
+Tento dokument vysvětluje, proč je agentní konfigurace v projektu uspořádaná
+takto, a jaký je rozdíl mezi `--machinery full` a `--machinery lean`.
 
-## Princip: vlastnictví vrstvou, aktivace v rootu
+## Proč vůbec dva režimy
 
-Každá vrstva vlastní svou agentní konfiguraci v `src/<vrstva>/.cursor/`. To je
-**zdroj pravdy**:
+Cursor načítá vnořené `.cursor/rules` v podsložkách nespolehlivě. Spolehlivě
+funguje, jen když je vrstva otevřena jako samostatný workspace. Proto má smysl
+držet konfiguraci jednak u vrstvy (aby fungovala samostatně) a jednak v rootu
+(aby fungovala při otevření celého repozitáře).
 
-```text
-src/<vrstva>/.cursor/
-  rules/standards.mdc        # pravidla vrstvy (globs: ["**/*"])
-  agents/dev.md              # subagent specializovaný na vrstvu
-  skills/workflow/SKILL.md   # pracovní postup vrstvy
-```
+Některé projekty ale vrstvy samostatně neotvírají a zrcadlo nepotřebují. Pro ně
+je tu `lean`.
 
-Cursor má ale dvě omezení, která tvarují celý návrh:
+## `full` — vlastnictví vrstvou, aktivace v rootu
 
-1. Vnořené `.cursor/rules` v podsložkách monorepa se načítají **nespolehlivě**.
-   Spolehlivě fungují, jen když je vrstva otevřena jako samostatný workspace.
-2. `.github/workflows/` GitHub čte **pouze z rootu** repozitáře.
+Každá vrstva vlastní svou konfiguraci v `src/<Layer>/.cursor/`. To je **zdroj
+pravdy**. Root `.cursor/` je **generované zrcadlo**:
 
-Proto existuje root `.cursor/`, které je **generovaným zrcadlem** zdrojů ve vrstvách:
+| Zdroj | Cíl |
+| --- | --- |
+| `rules/*.mdc` | `.cursor/rules/generated/<slug>/*.mdc` (globs zúžen na `src/<Layer>/**`) |
+| `agents/*.md` | `.cursor/agents/<slug>-*.md` |
+| `skills/<x>/**` | `.cursor/skills/<slug>-<x>/**` |
+| — | `.cursor/.generated-manifest.json` (evidence generovaných souborů) |
 
-```mermaid
-flowchart LR
-  A["src/vrstva/.cursor/rules"] --> S["scripts/sync-agent-config.ps1"]
-  B["src/vrstva/.cursor/agents"] --> S
-  C["src/vrstva/.cursor/skills"] --> S
-  S --> D[".cursor/rules/generated/vrstva"]
-  S --> E[".cursor/agents/vrstva-*.md"]
-  S --> F[".cursor/skills/vrstva-*"]
-  S --> M[".cursor/.generated-manifest.json"]
-```
-
-Výsledek: konfigurace funguje v **obou režimech**.
+Konfigurace tak funguje ve dvou režimech:
 
 | Režim otevření | Aktivní konfigurace |
 | --- | --- |
-| Celý repozitář | root `.cursor/` (generované zrcadlo, globs `src/<vrstva>/**`) |
-| Samotná vrstva | `src/<vrstva>/.cursor/` (globs `**/*`) |
+| Celý repozitář | root `.cursor/` (generované zrcadlo) |
+| Samotná vrstva | `src/<Layer>/.cursor/` (globs `**/*`) |
 
-## Mapování a transformace
+Root `.cursor/` se udržuje v souladu skriptem `sync-agent-config` a hookem
+`afterFileEdit`, který sync spustí po editaci zdroje. Hook je fail-open.
 
-| Zdroj | Cíl | Transformace |
-| --- | --- | --- |
-| `rules/*.mdc` | `.cursor/rules/generated/<vrstva>/*.mdc` | `globs` přepsán na `["src/<vrstva>/**"]`, description prefixován `[<vrstva>]`, přidána hlavička GENERATED |
-| `agents/*.md` | `.cursor/agents/<vrstva>-*.md` | `name` prefixován názvem vrstvy (pokud už prefix nemá), description prefixován `[<vrstva>]` |
-| `skills/<x>/**` | `.cursor/skills/<vrstva>-<x>/**` | `SKILL.md` má prefixovaný `name` a description, ostatní soubory se kopírují |
-| — | `.cursor/.generated-manifest.json` | evidence vygenerovaných souborů pro spolehlivý úklid osiřelých souborů |
+Ruční soubory v root `.cursor/` (`rules/00-project.mdc`, `agents/architect.md`,
+`skills/layer-management/`) **nejsou** součástí zrcadla a sync je nikdy
+nemaže — orphan cleanup se řídí manifestem, ne obsahem složky.
 
-Zdrojové pravidlo používá `globs: ["**/*"]`, protože v režimu samostatné vrstvy
-je workspace kořenem vrstvy. Sync tento glob při generování zúží na `src/<vrstva>/**`,
-což je správně pro režim celého repozitáře.
+## `lean` — jen root
 
-## Pracovní postup
+Vrstvy nemají vlastní `.cursor/`. Generátor zapíše konfiguraci přímo do root
+`.cursor/`:
 
-Po každé změně `src/<vrstva>/.cursor/`:
+- `.cursor/rules/00-project.mdc` — globální pravidla projektu,
+- `.cursor/rules/<slug>.mdc` pro každou vrstvu (globs `src/<Layer>/**`),
+- `.cursor/agents/<slug>-dev.md` pro každou vrstvu,
+- `.cursor/agents/architect.md` a `.cursor/skills/layer-management/`.
 
-```powershell
-pwsh -File scripts/sync-agent-config.ps1
-```
+Nevzniká žádné zrcadlo, žádný sync skript, žádný manifest a žádné hooky.
+Přidání nové vrstvy v `lean` režimu proto rovnou zapisuje i její root pravidlo
+a subagenta (viz `__root__/` v `scripts/layer-template/`).
 
-Před commitem (a v CI) ověř, že zrcadlo není zastaralé:
+## Co je společné
 
-```powershell
-pwsh -File scripts/sync-agent-config.ps1 -Check
-```
+- Instrukce se dědí třemi úrovněmi: `AGENTS.md` (root) -> `src/AGENTS.md` ->
+  `src/<Layer>/AGENTS.md`. Každá úroveň na rodiče explicitně odkazuje, aby to
+  fungovalo i pro nástroje, které vnořené instrukce neslévají.
+- `AGENTS.md` je zároveň instrukční formát pro Codex; proto se generuje vždy,
+  bez ohledu na `--agents`.
+- Skill `layer-management` učí agenta zakládat a kontrolovat vrstvy výhradně
+  přes skript a nikdy nepřepisovat ruční úpravy.
 
-Příkaz `-Check` nic nezapisuje a skončí kódem 1, pokud:
-- některý generovaný soubor chybí,
-- některý generovaný soubor je zastaralý,
-- existuje osiřelý generovaný soubor (zdroj byl smazán).
+## Nedestruktivnost
 
-## Hook pro automatický sync
-
-`.cursor/hooks.json` registruje hook `afterFileEdit`, který po editaci souboru
-v `src/<vrstva>/.cursor/` spustí sync automaticky. Hook je záměrně **fail-open** —
-při jakékoli chybě vrátí úspěch, aby nikdy neblokoval práci. Editace generovaných
-souborů v `.cursor/` sync nespouštějí, takže nevzniká smyčka.
-
-## Dědičnost instrukcí
-
-Instrukce se dědí třemi úrovněmi. Cursor vnořené `AGENTS.md` slévá automaticky
-(konkrétnější vyhrává), ale každá vrstva na rodiče také explicitně odkazuje —
-proto funguje i pro nástroje, které slévání neprovádějí.
-
-```mermaid
-flowchart TD
-  Root["AGENTS.md (globalni pravidla)"] --> Src["src/AGENTS.md (spolecna pravidla vrstev)"]
-  Src --> L1["src/domain/AGENTS.md"]
-  Src --> L2["src/infrastructure/AGENTS.md"]
-  L1 -. "explicitni odkaz na rodice" .-> Src
-  L1 -. "explicitni odkaz na rodice" .-> Root
-```
-
-## Omezení, která je dobré znát
-
-- **Per-vrstva workflows nejsou spustitelné z rootu.** `src/<vrstva>/.github/workflows/<vrstva>.yml`
-  je zdroj pravdy a dokumentace záměru; root `ci.yml` ho nahrazuje dynamickou
-  maticí přes vrstvy. Spustitelný je jen při otevření vrstvy jako samostatného repa.
-- **Per-vrstva composite actions fungují** (`src/<vrstva>/.github/actions/setup-layer/action.yml`),
-  protože lokální akce lze volat cestou.
-- **Novou vrstvu není potřeba přidávat do CI ručně** — root `ci.yml` vrstvy objevuje
-  dynamicky podle přítomnosti `AGENTS.md`.
-- **Hooks jsou pouze root-only** — `hooks.json` se spouští z rootu projektu.
+- Sync zapisuje jen do root `.cursor/` a jen u souborů vedených v manifestu.
+- `verify-layer` a `test-layer` nikdy nezapisují.
+- `new-layer` nikdy nepřepíše existující soubor; existující soubory projektu
+  (`src/AGENTS.md`, `docs/layers.md`) needituje a jen upozorní, co doplnit ručně.

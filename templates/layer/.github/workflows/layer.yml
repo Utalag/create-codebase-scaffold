@@ -1,0 +1,31 @@
+# Definice pipeline vrstvy __LAYER__.
+#
+# GitHub Actions načítá workflows výhradně z root .github/workflows/.
+# Tento soubor je zdroj pravdy pro vrstvu a konzumuje ho root ci.yml.
+# Spustitelný je pouze tehdy, je-li vrstva otevřena jako samostatný repozitář.
+
+name: __LAYER_SLUG__
+
+on:
+  workflow_dispatch:
+
+jobs:
+  layer:
+    name: Layer __LAYER__
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ověř strukturu a konfiguraci vrstvy
+        uses: ./src/__LAYER__/.github/actions/setup-layer
+<!--#if tooling_pwsh-->
+
+      - name: Testy vrstvy
+        shell: pwsh
+        run: ./scripts/test-layer.ps1 -Layer __LAYER__
+<!--#endif-->
+<!--#if tooling_node-->
+
+      - name: Testy vrstvy
+        run: node scripts/test-layer.mjs --layer __LAYER__
+<!--#endif-->

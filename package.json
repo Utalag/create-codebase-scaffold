@@ -1,0 +1,37 @@
+{
+  "name": "create-codebase-scaffold",
+  "version": "0.1.0",
+  "description": "Generátor jazykově neutrálního, vrstveného scaffoldu připraveného pro AI agenty.",
+  "type": "module",
+  "bin": {
+    "create-codebase-scaffold": "bin/create.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "templates",
+    "docs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "generate": "node bin/create.js",
+    "check:package": "node tools/check-package.mjs",
+    "prepack": "node tools/check-package.mjs"
+  },
+  "keywords": [
+    "scaffold",
+    "generator",
+    "architecture",
+    "layers",
+    "agents",
+    "cursor",
+    "copilot",
+    "claude",
+    "codex"
+  ],
+  "license": "MIT"
+}

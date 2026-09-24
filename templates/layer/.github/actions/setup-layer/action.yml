@@ -1,0 +1,28 @@
+name: Setup __LAYER_TITLE__ layer
+description: Ověří strukturu a agentní konfiguraci vrstvy __LAYER__.
+
+runs:
+  using: composite
+  steps:
+    - name: Ověř strukturu a konfiguraci vrstvy
+<!--#if tooling_pwsh-->
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $verify = Join-Path $env:GITHUB_WORKSPACE 'scripts/verify-layer.ps1'
+        if (Test-Path -LiteralPath $verify) {
+          & $verify -Layer '__LAYER__'
+        }
+        else {
+          Write-Host "scripts/verify-layer.ps1 není k dispozici (standalone vrstva) - přeskakuji strukturální kontrolu."
+        }
+<!--#endif-->
+<!--#if tooling_node-->
+      shell: bash
+      run: |
+        if [ -f scripts/verify-layer.mjs ]; then
+          node scripts/verify-layer.mjs --layer '__LAYER__'
+        else
+          echo "scripts/verify-layer.mjs není k dispozici (standalone vrstva) - přeskakuji strukturální kontrolu."
+        fi
+<!--#endif-->

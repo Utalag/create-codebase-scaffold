@@ -1,10 +1,12 @@
-# Normalizace konců řádků — šablona je určena pro cross-platform vývoj.
+# Normalizace konců řádků — generátor i jím vygenerované projekty jsou cross-platform.
 # Soubory v repozitáři jsou uloženy s LF; git je při checkoutu převede podle platformy.
 * text=auto eol=lf
 
-# Skripty musí zůstat LF, aby fungovaly v CI na Linuxu i lokálně.
+# Skripty musí zůstat LF, aby fungovaly v CI i lokálně na Windows.
 *.ps1 text eol=lf
 *.sh text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
 *.json text eol=lf

@@ -1,88 +1,46 @@
-# AGENTS.md — globální instrukce repozitáře
+# AGENTS.md — instrukce pro práci na generátoru
 
-Tento soubor je vstupní bod pro každého AI agenta pracujícího v tomto repozitáři.
-Platí pro celý strom. Konkrétnější instrukce v podřízených složkách mají přednost.
+Tento repozitář je **generátor** scaffoldu (`create-codebase-scaffold`), ne
+scaffold samotný. Nezakládej v něm vrstvy ani negeneruj strukturu projektu.
 
-## Řetěz dědičnosti instrukcí
+## Orientace
 
-Před prací v konkrétní vrstvě si přečti všechny úrovně v tomto pořadí:
+| Cesta | Význam |
+| --- | --- |
+| `bin/create.js` | CLI vstup, tenký wrapper nad `lib/cli.js` |
+| `lib/` | logika generátoru (CLI, presety, render, zápis) |
+| `templates/` | **šablony vygenerovaného projektu** — tady se píše jeho obsah |
+| `test/` | testy generátoru (`npm test`) |
+| `examples/` | referenční vygenerované projekty |
+| `docs/` | dokumentace generátoru |
+| `.cursor/` | agentní konfigurace pro vývoj generátoru |
 
-1. `AGENTS.md` (tento soubor) — globální pravidla repozitáře.
-2. `src/AGENTS.md` — pravidla společná všem vrstvám.
-3. `src/<vrstva>/AGENTS.md` — guardrails konkrétní vrstvy.
-4. `src/<vrstva>/README.md` — co vrstva dělá a jak ji spustit.
+V tomto repu **není** `src/` s vrstvami. Vrstvy existují jen jako šablony
+v `templates/layer/` a jako data v `lib/presets.js`.
 
-Cursor vnořené `AGENTS.md` slévá automaticky (konkrétnější vyhrává). Každá vrstva
-navíc na rodiče explicitně odkazuje, aby byl kontext čitelný i pro nástroje,
-které slévání neprovádějí.
+## Pravidla
 
-## Mapa repozitáře
+- Do `templates/` nepiš nic, co nepatří vygenerovanému projektu. Meta-informace
+  o generátoru patří do `docs/`, ne do šablon.
+- Obsah vygenerovaného projektu se mění pouze v `templates/` a v `lib/generator.js`.
+- Zachovej nedestruktivní sémantiku: existující soubor se nikdy nepřepíše bez
+  `--force`; `verify-layer` a `test-layer` nikdy nezapisují.
+- Názvy vrstev jsou vždy PascalCase. Kebab-case slug se používá jen pro názvy
+  artefaktů (`.cursor` soubory, CI joby).
+- Udržuj obě tooling varianty (`templates/tooling/pwsh` a `templates/tooling/node`)
+  funkčně shodné a obě dokumentované (EN i CZ).
+- Udržuj shodné chování pro `machinery=full` i `lean`.
+- Nová funkce bez testu se nepovažuje za hotovou.
 
-```text
-AGENTS.md              # tento soubor
-src/
-  AGENTS.md            # společná pravidla vrstev
-  <vrstva>/            # domain, application, infrastructure, presentation, shared
-    AGENTS.md          # guardrails vrstvy
-    .cursor/           # ZDROJ PRAVDY pro agentní konfiguraci vrstvy
-    .github/           # lokální composite actions + definice pipeline vrstvy
-    src/               # produkční kód vrstvy
-    tests/             # testy vrstvy (unit, integration)
-    docs/              # dokumentace vrstvy + ADR
-.cursor/               # AKTIVNÍ konfigurace pro celý repozitář
-  rules/generated/     # GENEROVÁNO ze src/<vrstva>/.cursor — needitovat
-  agents/              # globální + generovaní subagenti
-  skills/              # globální + generované skills
-  hooks.json           # hooky (pouze root)
-.github/workflows/     # CI (pouze root)
-scripts/               # sync-agent-config.ps1, new-layer.ps1, test-layer.ps1
-docs/                  # projektová dokumentace
-```
+## Než začneš
 
-## Architektonická pravidla
+Přečti si `docs/generator.md`, `docs/templates.md` a `docs/agent-config.md`.
 
-Závislosti mezi vrstvami smějí směřovat pouze dovnitř:
+## Před dokončením práce
 
-```mermaid
-flowchart LR
-  Presentation --> Application
-  Infrastructure --> Application
-  Application --> Domain
-  Domain --> Shared
-  Application --> Shared
-  Infrastructure --> Shared
-  Presentation --> Shared
-```
-
-- `domain` nesmí importovat žádnou jinou vrstvu kromě `shared`.
-- `application` nesmí sahat přímo na databázi, HTTP ani filesystem — jde přes porty.
-- `infrastructure` implementuje porty a vlastní veškerý přístup k vnějšímu světu.
-- `presentation` obsahuje pouze validaci vstupu a mapování, ne business logiku.
-- `shared` nesmí záviset na žádné jiné vrstvě.
-
-## Agentní konfigurace
-
-- **Zdroj pravdy** je vždy `src/<vrstva>/.cursor/`. Nikdy needituj
-  `.cursor/rules/generated/**` — je přepsán při každém syncu.
-- Po jakékoli změně v `src/<vrstva>/.cursor/` spusť:
-
-  ```powershell
-  pwsh -File scripts/sync-agent-config.ps1
-  ```
-
-- Před commitem ověř, že konfigurace není zastaralá:
-
-  ```powershell
-  pwsh -File scripts/sync-agent-config.ps1 -Check
-  ```
-
-- Hooks žijí pouze v rootu (`.cursor/hooks.json`) — spouštějí se z rootu projektu.
-- GitHub čte `.github/workflows/` pouze z rootu. Per-vrstva workflows jsou zdroj,
-  který root CI konzumuje; funkční jsou per-vrstva jen lokální composite actions.
-
-## Konvence
-
-- Nová vrstva se zakládá výhradně přes `pwsh -File scripts/new-layer.ps1 -Name <vrstva>`.
-- Cesty v dokumentaci piš s dopřednými lomítky (`src/domain/...`), nikdy s `\`.
-- Každé netriviální rozhodnutí vrstvy patří do `src/<vrstva>/docs/decisions/` jako ADR.
-- Testy vrstvy se spouštějí přes `pwsh -File scripts/test-layer.ps1 -Layer <vrstva>`.
+- `npm test` prochází.
+- Vygenerovaný projekt projde `sync-agent-config --check` i `verify-layer`
+  pro každou vrstvu, a to pro `pwsh` i `node`.
+- Ve výstupu nezůstaly nerozřešené tokeny `__TOKEN__` (výjimkou je záměrně
+  `scripts/layer-template/**`).
+- Změna je popsaná v `docs/`, pokud mění chování generátoru.

@@ -9,24 +9,22 @@ desktop.ini
 .idea/
 *.swp
 
-# Závislosti a build výstupy (šablona je jazyk-agnostická, doplň dle stacku)
+# Node
 node_modules/
-dist/
-build/
-out/
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-target/
-bin/
-obj/
+npm-debug.log*
+.npm/
 
-# Testovací a coverage výstupy
+# Lokální výstupy generátoru a testů
+.tmp*
+tmp/
+*.tgz
+
+# Vygenerované vzorky (repo drží jen examples/README.md a generate.mjs)
+examples/*/
+
+# Coverage
 coverage/
-.coverage
 *.lcov
-TestResults/
 
 # Lokální konfigurace
 .env

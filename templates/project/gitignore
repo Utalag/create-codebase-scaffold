@@ -1,0 +1,34 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editory
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# Závislosti a build výstupy (doplň dle stacku)
+node_modules/
+dist/
+build/
+out/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+target/
+bin/
+obj/
+
+# Testovací a coverage výstupy
+coverage/
+.coverage
+*.lcov
+TestResults/
+
+# Lokální konfigurace
+.env
+.env.local
+*.local
