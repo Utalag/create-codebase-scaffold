@@ -280,6 +280,11 @@ test('node tooling: sync, verify, test i new-layer fungují end to end', () => {
   assert.ok(exists(target, 'src/Adapters/AGENTS.md'));
   assert.ok(!readText(target, 'src/Adapters/AGENTS.md').includes('DOPLŇ:'));
 
+  // new-layer sám spustil sync, takže zrcadlo je hned v souladu.
+  const afterNewLayer = run('scripts/sync-agent-config.mjs', ['--check']);
+  assert.equal(afterNewLayer.status, 0, afterNewLayer.stdout + afterNewLayer.stderr);
+  assert.ok(exists(target, '.cursor/agents/adapters-dev.md'));
+
   const verifyKnown = run('scripts/verify-layer.mjs', ['--layer', 'Adapters']);
   assert.equal(verifyKnown.status, 0, verifyKnown.stdout + verifyKnown.stderr);
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { layerSlug, parseArgs, projectRoot, toLf, walkFiles, writeText } from './lib/util.mjs';
+import { isActiveLayerName, layerSlug, parseArgs, projectRoot, toLf, walkFiles, writeText } from './lib/util.mjs';
 
 /**
  * Synchronizuje agentní konfiguraci vrstev z src/<Layer>/.cursor/ do root .cursor/.
@@ -54,7 +54,12 @@ function listLayerDirs() {
 
   return fs
     .readdirSync(srcRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(srcRoot, entry.name, '.cursor')))
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        isActiveLayerName(entry.name) &&
+        fs.existsSync(path.join(srcRoot, entry.name, '.cursor')),
+    )
     .map((entry) => entry.name)
     .sort();
 }

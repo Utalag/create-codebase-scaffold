@@ -69,3 +69,12 @@ a subagenta (viz `__root__/` v `scripts/layer-template/`).
 - `verify-layer` a `test-layer` nikdy nezapisují.
 - `new-layer` nikdy nepřepíše existující soubor; existující soubory projektu
   (`src/AGENTS.md`, `docs/layers.md`) needituje a jen upozorní, co doplnit ručně.
+  U `machinery=full` po založení vrstvy sám spustí `sync-agent-config`.
+- `rename-layer` mění mapu atomicky (složka, `.scaffold.json`, odkazy, zrcadla)
+  a u `full` končí stejným syncem. `delete-layer` je **soft retire** — přesune
+  vrstvu na `src/_retired-<Layer>/` a vyřadí ji z mapy; obsah složky zůstává.
+- Sync i `verify-layer` ignorují složky s prefixem `_retired-`/`_*`, takže
+  vyřazená vrstva se nikdy neobjeví v root `.cursor/` ani v CI matici.
+- Aktivní vrstvy se poznají podle PascalCase názvu složky v `src/`; skript
+  `delete-layer` je nedestruktivní defaultně (`--dry-run`) a ostrý běh chce
+  potvrzení (`--yes`/`-Yes`).

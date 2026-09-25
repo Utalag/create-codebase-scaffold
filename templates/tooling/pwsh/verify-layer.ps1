@@ -63,6 +63,10 @@ if (-not $layerDir) {
 
 $layerName = Split-Path -Leaf $layerDir
 
+if ($layerName -notmatch '^[A-Z][A-Za-z0-9]*$') {
+    throw "Vrstva '$layerName' není aktivní. Vyřazené vrstvy (prefix '_retired-') sync ani verify neberou jako aktivní."
+}
+
 $required = @(
     'AGENTS.md',
     'README.md',

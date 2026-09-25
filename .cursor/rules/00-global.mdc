@@ -15,6 +15,8 @@ připomínka, ne náhrada.
 - Logika a složení výstupu: `lib/` (zejména `lib/generator.js`).
 - Vrstvy, archetypy a guardrails: `lib/presets.js`.
 - Ekosystémy a CLI volby: `lib/cli.js` a `lib/generator.js`.
+- Skripty vygenerovaného projektu (lifecycle vrstev): `templates/tooling/{node,pwsh}/`
+  — obě varianty musí zůstat funkčně shodné a každá změna struktury končí syncem.
 - Meta-informace o generátoru: `docs/`, nikdy ne do `templates/`.
 
 ## Nepřekročitelné zásady

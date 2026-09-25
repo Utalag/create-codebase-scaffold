@@ -18,7 +18,7 @@ export function generate(options = {}) {
       target,
       projectName: 'TestApp',
       presetId: 'clean',
-      tooling: 'pwsh',
+      tooling: 'node',
       machinery: 'full',
       agents: ['cursor', 'codex'],
       ci: true,

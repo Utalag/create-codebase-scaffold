@@ -77,6 +77,10 @@ node bin/create.js my-api --preset hexagonal --tooling node --machinery full \
 node bin/create.js app --layers Domain,Application,Adapters,Shared
 ```
 
+Bez `--tooling` se použije výchozí **`node`** (generátor je sám Node CLI, takže
+na Linux/macOS greenfieldu nic dalšího nepotřebuješ). PowerShell je explicitní
+opt-in přes `--tooling pwsh`.
+
 Než začneš zapisovat, ověř, že projekt je v pořádku:
 
 ```bash

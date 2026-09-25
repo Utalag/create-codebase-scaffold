@@ -26,6 +26,17 @@ export function readJson(filePath) {
   return JSON.parse(readText(filePath));
 }
 
+/** Prefix, kterým se označí vyřazená (retired) vrstva na disku. */
+export const RETIRED_PREFIX = '_retired-';
+
+/**
+ * True, pokud je název aktivní vrstvy: PascalCase a nezačíná `_`.
+ * Vyřazené vrstvy mají na disku prefix `_retired-`, takže se sem nevejdou.
+ */
+export function isActiveLayerName(name) {
+  return /^[A-Z][A-Za-z0-9]*$/.test(String(name));
+}
+
 /** `Domain` -> `domain`, `AntiFraud` -> `anti-fraud`. */
 export function layerSlug(name) {
   return String(name)
@@ -89,7 +100,7 @@ export function expandTokens(text, tokens) {
 }
 
 /** Volby, které vždy očekávají hodnotu, i kdyby začínala pomlčkou. */
-const VALUE_OPTIONS = new Set(['name', 'layer']);
+const VALUE_OPTIONS = new Set(['name', 'layer', 'to']);
 
 /** Jednoduchý parser `--flag`, `--key value` a `--key=value`. */
 export function parseArgs(argv) {

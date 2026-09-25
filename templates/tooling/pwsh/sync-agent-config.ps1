@@ -113,7 +113,8 @@ function Get-LayerDirectories {
     if (-not (Test-Path -LiteralPath $srcRoot)) { return @() }
 
     return @(Get-ChildItem -LiteralPath $srcRoot -Directory | Where-Object {
-        Test-Path -LiteralPath (Join-Path $_.FullName '.cursor')
+        $_.Name -match '^[A-Z][A-Za-z0-9]*$' -and
+        (Test-Path -LiteralPath (Join-Path $_.FullName '.cursor'))
     } | Sort-Object Name)
 }
 

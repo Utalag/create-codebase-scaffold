@@ -12,6 +12,9 @@
     Skript je nedestruktivní: existující soubor nikdy nepřepíše. Přepsání
     vynutíš přepínačem -Force.
 
+    U plné konfigurace (machinery=full) skript po založení vrstvy sám spustí
+    sync-agent-config, aby root .cursor/ nezůstalo zastaralé a -Check prošlo.
+
     Skript nikdy needituje existující soubory projektu — pokud je potřeba
     doplnit novou vrstvu do src/AGENTS.md nebo docs/layers.md, vypíše upozornění.
 
@@ -92,7 +95,9 @@ if (-not $archetype) { $archetype = $presets.archetypes.default }
 
 $existingLayers = @()
 if (Test-Path -LiteralPath $srcRoot) {
-    $existingLayers = @(Get-ChildItem -LiteralPath $srcRoot -Directory | Select-Object -ExpandProperty Name)
+    $existingLayers = @(Get-ChildItem -LiteralPath $srcRoot -Directory |
+        Where-Object { $_.Name -match '^[A-Z][A-Za-z0-9]*$' } |
+        Select-Object -ExpandProperty Name)
 }
 
 $knownArchetype = $null -ne $archetype.canonicalDeps
@@ -198,6 +203,47 @@ foreach ($placeholder in @('src', 'tests/unit', 'tests/integration')) {
 }
 
 # ---------------------------------------------------------------------------
+# Konfigurace projektu a automatický sync mapy
+# ---------------------------------------------------------------------------
+
+$machinery = 'lean'
+$configPath = Join-Path $root '.scaffold.json'
+if (Test-Path -LiteralPath $configPath) {
+    try {
+        $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+        $machinery = [string]$config.machinery
+
+        # Doplň vrstvu do mapy vrstev, pokud tam ještě není.
+        if ($config.layers -is [array] -and ($config.layers -notcontains $layer)) {
+            $config.layers = @($config.layers) + $layer
+            [System.IO.File]::WriteAllText(
+                $configPath,
+                (($config | ConvertTo-Json -Depth 6) + "`n"),
+                $utf8NoBom
+            )
+        }
+    }
+    catch {
+        $machinery = 'lean'
+    }
+}
+
+# U plné konfigurace se root .cursor/ udržuje jako zrcadlo zdrojů ve vrstvách.
+# Bez tohoto kroku by hned po založení vrstvy selhal `sync-agent-config -Check`
+# (a tím i CI), proto ho skript spouští sám.
+function Invoke-AgentConfigSync {
+    $syncScript = Join-Path $scriptDir 'sync-agent-config.ps1'
+    if (-not (Test-Path -LiteralPath $syncScript)) { return }
+
+    Write-Host ""
+    Write-Host "Synchronizuji agentní konfiguraci do root .cursor/..."
+    & $syncScript
+    if (-not $?) {
+        throw "Synchronizace agentní konfigurace selhala."
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Souhrn
 # ---------------------------------------------------------------------------
 
@@ -213,15 +259,8 @@ if (-not $knownArchetype) {
     Write-Host "Pozor: použit obecný archetyp. Nahraď markery DOPLŇ: v src/$layer/AGENTS.md." -ForegroundColor Yellow
 }
 
-$machinery = 'lean'
-$configPath = Join-Path $root '.scaffold.json'
-if (Test-Path -LiteralPath $configPath) {
-    try {
-        $machinery = [string](Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json).machinery
-    }
-    catch {
-        $machinery = 'lean'
-    }
+if ($machinery -eq 'full') {
+    Invoke-AgentConfigSync
 }
 
 Write-Host ""
@@ -231,7 +270,7 @@ $steps = New-Object System.Collections.Generic.List[string]
 $steps.Add("Uprav guardrails:          src/$layer/AGENTS.md")
 $steps.Add('Doplň vrstvu do pravidel:  src/AGENTS.md a docs/layers.md (skript je needituje)')
 if ($machinery -eq 'full') {
-    $steps.Add('Synchronizuj konfiguraci:  pwsh -File scripts/sync-agent-config.ps1')
+    $steps.Add('Zkontroluj sync:           pwsh -File scripts/sync-agent-config.ps1 -Check')
 }
 $steps.Add("Ověř strukturu:            pwsh -File scripts/verify-layer.ps1 -Layer $layer")
 $steps.Add("Spusť testy:               pwsh -File scripts/test-layer.ps1 -Layer $layer")

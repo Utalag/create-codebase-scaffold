@@ -40,6 +40,11 @@ if (-not (Test-Path -LiteralPath $layerDir)) {
 }
 
 $layerName = Split-Path -Leaf $layerDir
+
+if ($layerName -notmatch '^[A-Z][A-Za-z0-9]*$') {
+    throw "Vrstva '$layerName' není aktivní. Vyřazené vrstvy (prefix '_retired-') se netestují."
+}
+
 $runner = Join-Path $layerDir 'tests/run.ps1'
 
 if (-not (Test-Path -LiteralPath $runner)) {

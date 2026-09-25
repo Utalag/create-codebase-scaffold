@@ -26,8 +26,13 @@ jen tento skript a jeho dokumentaci, aby vzorky nemohly zastarat.
 
 - `AGENTS.md`, `src/AGENTS.md` a `src/<Layer>/AGENTS.md` — řetěz instrukcí.
 - `docs/layers.md` — tabulka vrstev a směr závislostí presetu.
-- `scripts/` — skripty pro správu vrstev a jejich README (EN i CZ).
+- `scripts/` — skripty pro správu vrstev a jejich README (EN i CZ):
+  `new-layer` (sám registruje vrstvu a u `full` synchronizuje),
+  `rename-layer` (přejmenuje vrstvu i odkazy a zrcadla),
+  `delete-layer` (soft retire přes `_retired-`), `verify-layer`, `test-layer`
+  a `sync-agent-config` (jen `full`).
 - `scripts/layer-template/` — šablona, ze které `new-layer` zakládá další vrstvy.
+- `scripts/lib/` — sdílená logika skriptů (parita `node`/`pwsh`).
 - `.cursor/` — u `full` je zrcadlo prázdné, dokud nespustíš sync; u `lean` je
   naplněné přímo.
 - `.scaffold.json` — jak si projekt pamatuje svoji konfiguraci.

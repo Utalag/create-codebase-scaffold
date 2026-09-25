@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { parseArgs, projectRoot, resolveLayerDir } from './lib/util.mjs';
+import { isActiveLayerName, parseArgs, projectRoot, resolveLayerDir } from './lib/util.mjs';
 
 /**
  * Spustí testy dané vrstvy.
@@ -32,6 +32,14 @@ if (!layerDir) {
 }
 
 const resolvedName = path.basename(layerDir);
+
+if (!isActiveLayerName(resolvedName)) {
+  console.error(
+    `Chyba: '${resolvedName}' není aktivní vrstva. Vyřazené vrstvy (prefix '_retired-') se netestují.`,
+  );
+  process.exit(1);
+}
+
 const runner = path.join(layerDir, 'tests', 'run.mjs');
 
 if (!fs.existsSync(runner)) {

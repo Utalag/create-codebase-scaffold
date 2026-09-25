@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import {
   expandTokens,
+  isActiveLayerName,
   layerSlug,
   layerTitle,
   parseArgs,
@@ -24,6 +26,9 @@ import {
  * Skript je nedestruktivní: existující soubor nikdy nepřepíše. Přepsání
  * vynutíš přepínačem --force. Existující soubory projektu (src/AGENTS.md,
  * docs/layers.md) needituje — jen vypíše upozornění.
+ *
+ * U plné konfigurace (machinery=full) skript po založení vrstvy sám spustí
+ * sync-agent-config, aby root .cursor/ nezůstalo zastaralé a `--check` prošlo.
  *
  * Použití: node scripts/new-layer.mjs --name Billing
  */
@@ -65,7 +70,10 @@ const archetype = presets.archetypes[slug] ?? presets.archetypes.default;
 
 const srcRoot = path.join(projectRoot, 'src');
 const existingLayers = fs.existsSync(srcRoot)
-  ? fs.readdirSync(srcRoot, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+  ? fs
+      .readdirSync(srcRoot, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && isActiveLayerName(e.name))
+      .map((e) => e.name)
   : [];
 
 const knownArchetype = archetype.canonicalDeps !== null && archetype.canonicalDeps !== undefined;
@@ -114,6 +122,18 @@ function write(target, content) {
   created.push(target);
 }
 
+/** Doplní vrstvu do `.scaffold.json` (mapa vrstev), pokud tam ještě není. */
+function registerLayerInConfig(name) {
+  const configPath = path.join(projectRoot, '.scaffold.json');
+  if (!fs.existsSync(configPath)) return;
+
+  const config = readJson(configPath);
+  if (!Array.isArray(config.layers) || config.layers.includes(name)) return;
+
+  config.layers.push(name);
+  writeText(configPath, `${JSON.stringify(config, null, 2)}\n`);
+}
+
 for (const relative of walkFiles(templateDir)) {
   const targetRelative = render(relative);
   const target = targetRelative.startsWith('__root__/')
@@ -134,6 +154,10 @@ for (const placeholder of ['src', 'tests/unit', 'tests/integration']) {
   }
 }
 
+registerLayerInConfig(layer);
+
+const machinery = readProjectConfig().machinery;
+
 console.log('');
 console.log(`Vrstva '${layer}' byla založena: src/${layer}`);
 
@@ -146,6 +170,26 @@ if (!knownArchetype) {
   console.log(`Pozor: použit obecný archetyp. Nahraď markery DOPLŇ: v src/${layer}/AGENTS.md.`);
 }
 
+// U plné konfigurace se root .cursor/ udržuje jako zrcadlo zdrojů ve vrstvách.
+// Bez tohoto kroku by hned po založení vrstvy selhal `sync-agent-config --check`
+// (a tím i CI), proto ho skript spouští sám. Zdroj i zrcadlo tak zůstanou
+// konzistentní bez ručního mezikroku.
+if (machinery === 'full') {
+  const syncScript = path.join(scriptsDir, 'sync-agent-config.mjs');
+
+  if (fs.existsSync(syncScript)) {
+    console.log('');
+    console.log('Synchronizuji agentní konfiguraci do root .cursor/...');
+
+    const sync = spawnSync(process.execPath, [syncScript], { cwd: projectRoot, stdio: 'inherit' });
+
+    if (sync.status !== 0) {
+      console.error(`Chyba: synchronizace agentní konfigurace selhala (exit ${sync.status ?? 1}).`);
+      process.exit(sync.status ?? 1);
+    }
+  }
+}
+
 console.log('');
 console.log('Další kroky:');
 
@@ -154,8 +198,8 @@ const steps = [
   'Doplň vrstvu do pravidel:  src/AGENTS.md a docs/layers.md (skript je needituje)',
 ];
 
-if (readProjectConfig().machinery === 'full') {
-  steps.push('Synchronizuj konfiguraci:  node scripts/sync-agent-config.mjs');
+if (machinery === 'full') {
+  steps.push('Zkontroluj sync:           node scripts/sync-agent-config.mjs --check');
 }
 
 steps.push(`Ověř strukturu:            node scripts/verify-layer.mjs --layer ${layer}`);

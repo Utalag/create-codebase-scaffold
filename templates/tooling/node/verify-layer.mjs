@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseArgs, readProjectConfig, resolveLayerDir } from './lib/util.mjs';
+import { isActiveLayerName, parseArgs, readProjectConfig, resolveLayerDir } from './lib/util.mjs';
 
 /**
  * Ověří, že vrstva má povinnou strukturu a správně propojené instrukce.
@@ -24,6 +24,15 @@ if (!layerDir) {
 }
 
 const resolvedName = path.basename(layerDir);
+
+if (!isActiveLayerName(resolvedName)) {
+  console.error(
+    `Chyba: '${resolvedName}' není aktivní vrstva. Vyřazené vrstvy (prefix '_retired-') ` +
+      'sync ani verify neberou jako aktivní.',
+  );
+  process.exit(1);
+}
+
 const { machinery } = readProjectConfig();
 
 const required = [

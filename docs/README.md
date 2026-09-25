@@ -3,6 +3,11 @@
 Tato složka dokumentuje **generátor** (`create-codebase-scaffold`). Není součástí
 vygenerovaných projektů — ty mají vlastní `docs/`.
 
+Rovněž root [`AGENTS.md`](../AGENTS.md) popisuje **vývoj generátoru**, ne obsah
+vygenerovaného scaffoldu. Instrukce pro agenty pracující ve vygenerovaném
+projektu jsou v `templates/project/AGENTS.md` a `templates/layer/AGENTS.md`,
+které se do projektu teprve zapíšou.
+
 ## Obsah
 
 - [`install.md`](install.md) — požadavky, instalace generátoru a ověření, že běží.

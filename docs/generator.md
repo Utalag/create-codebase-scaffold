@@ -46,7 +46,7 @@ Generátor zapíše do kořene projektu `.scaffold.json`:
   "projectName": "my-app",
   "architecture": "clean",
   "layers": ["Domain", "Application", "Infrastructure", "Presentation", "Shared"],
-  "tooling": "pwsh",
+  "tooling": "node",
   "machinery": "full",
   "agents": ["cursor", "codex"],
   "ci": true
@@ -55,6 +55,24 @@ Generátor zapíše do kořene projektu `.scaffold.json`:
 
 Skripty projektu ho čtou, aby věděly, jak širokou kontrolu mají dělat
 (`machinery`) a jaké příkazy mají vypisovat.
+
+## Životní cyklus vrstvy
+
+Vygenerovaný projekt dostane skripty, které drží „živou mapu vrstev“
+(`src/<Layer>/`, `.scaffold.json`, `AGENTS.md`, `docs/layers.md` a root `.cursor/`)
+v souladu. Všechny jsou nedestruktivní a podporují `--dry-run`/`-DryRun`:
+
+| Skript | Co dělá | Sync mapy |
+| --- | --- | --- |
+| `new-layer` | založí vrstvu ze `scripts/layer-template/` a zaregistruje ji do `.scaffold.json` | u `full` sám spustí `sync-agent-config` |
+| `rename-layer` | atomicky přejmenuje vrstvu na disku, přepíše název, slug, titulek i cross-layer odkazy a přejmenuje root artefakty | u `full` sám spustí `sync-agent-config` |
+| `delete-layer` | **soft retire**: přesune vrstvu na `src/_retired-<Layer>/` a vyřadí ji z mapy | u `full` sám spustí `sync-agent-config` |
+
+`delete-layer` obsah složky nemaže — jen ji přejmenuje prefixem `_retired-` a
+přidá `RETIRED.md`. Sync, `verify-layer` ani CI složky s tímto prefixem neberou
+jako aktivní vrstvy, takže vrstva zmizí z živé mapy, ale data zůstanou. Úplné
+smazání je vědomý ruční krok uživatele (hard delete). `--dry-run` vypíše plán a
+nic nezmění; ostrý běh chce `--yes` (pwsh `-Yes`).
 
 ## Vrstvy a názvy
 

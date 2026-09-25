@@ -31,8 +31,8 @@ templates/
     copilot/copilot-instructions.md
     claude/CLAUDE.md
   skills/layer-management/SKILL.md
-  tooling/pwsh/*.ps1 + README.md + README.cs.md
-  tooling/node/*.mjs + lib/util.mjs + README.md + README.cs.md
+  tooling/pwsh/*.ps1 + lib/*.ps1 + README.md + README.cs.md
+  tooling/node/*.mjs + lib/*.mjs + README.md + README.cs.md
   hooks/hooks.json + sync-on-edit.ps1 + sync-on-edit.mjs
 ```
 
@@ -100,7 +100,9 @@ Kopíruje ji také do `scripts/layer-template/` daného projektu, aby skript
   prefix `__root__/`.
 
 Guardrails a směr závislostí bere `new-layer` z `scripts/layer-presets.json`,
-který generátor vytváří z `lib/presets.js`.
+který generátor vytváří z `lib/presets.js`. Po založení vrstvu zaregistruje do
+`.scaffold.json` a u `machinery=full` sám spustí `sync-agent-config`, aby
+zrcadlo v root `.cursor/` nezůstalo rozbité (viz `docs/generator.md`).
 
 ## Jak přidat preset nebo archetyp
 

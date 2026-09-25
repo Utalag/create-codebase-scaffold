@@ -3,6 +3,11 @@
 [![CI](https://github.com/Utalag/create-codebase-scaffold/actions/workflows/ci.yml/badge.svg)](https://github.com/Utalag/create-codebase-scaffold/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> **Není publikováno v npm registru.** `npx create-codebase-scaffold` proto zatím
+> skončí chybou `404`. Primární cesta je klon repozitáře a spuštění ze zdrojů
+> (`node bin/create.js`). Viz [Instalace](#instalace). Stav publikace: `0.1.0`
+> zatím není vydaná.
+
 Generátor jazykově neutrálního, vrstveného scaffoldu připraveného pro vývoj
 řízený AI agenty.
 
@@ -45,7 +50,7 @@ se stejnými volbami.
 | --- | --- | --- |
 | `--preset` | `clean`, `hexagonal`, `layered`, `vertical-slice`, `custom` | `clean` |
 | `--layers` | volný seznam PascalCase vrstev, přebíjí preset | — |
-| `--tooling` | `pwsh`, `node` | `pwsh` |
+| `--tooling` | `node`, `pwsh` | `node` |
 | `--machinery` | `full`, `lean` | `full` |
 | `--agents` | `cursor`, `copilot`, `codex`, `claude`, nebo `all` | `cursor,codex` |
 | `--ci` / `--no-ci` | vygenerovat CI workflow | `--ci` |
@@ -88,8 +93,12 @@ a testovací skripty vygenerovaného projektu jsou striktně read-only.
 - `AGENTS.md`, `src/AGENTS.md` a `AGENTS.md` v každé vrstvě — instrukce pro agenty.
 - `src/<Layer>/` s `README.md`, `docs/`, `src/`, `tests/` a (u `full`) `.cursor/`
   a `.github/`.
-- `scripts/` — `new-layer`, `verify-layer`, `test-layer`, `sync-agent-config`
-  (u `full`), šablona vrstvy a guardrails; plus `README.md` (EN) a `README.cs.md` (CZ).
+- `scripts/` — `new-layer`, `verify-layer`, `test-layer`, `delete-layer`,
+  `rename-layer`, `sync-agent-config` (u `full`), šablona vrstvy a guardrails;
+  plus `README.md` (EN) a `README.cs.md` (CZ).
+- Životní cyklus vrstev: `new-layer` založí vrstvu a sám synchronizuje mapu
+  (u `full`); `rename-layer` vrstvu přejmenuje včetně odkazů a zrcadel;
+  `delete-layer` ji **nedestruktivně vyřadí** (prefix `_retired-`, obsah zůstává).
 - `.cursor/` podle zvolených ekosystémů, `CLAUDE.md`, `.github/copilot-instructions.md`.
 - `docs/`, `.editorconfig`, `.gitignore`, `.scaffold.json` a CI workflow.
 

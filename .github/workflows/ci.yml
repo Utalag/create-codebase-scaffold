@@ -50,6 +50,7 @@ jobs:
           node scripts/verify-layer.mjs --layer Domain
           node scripts/test-layer.mjs --layer Domain
           node scripts/new-layer.mjs --name Adapters
+          node scripts/sync-agent-config.mjs
           node scripts/sync-agent-config.mjs --check
 
       - name: Vygeneruj a ověř projekt s pwsh toolingem
@@ -64,6 +65,7 @@ jobs:
           pwsh -File scripts/verify-layer.ps1 -Layer Business
           pwsh -File scripts/test-layer.ps1 -Layer Business
           pwsh -File scripts/new-layer.ps1 -Name Adapters
+          pwsh -File scripts/sync-agent-config.ps1
           pwsh -File scripts/sync-agent-config.ps1 -Check
 
       - name: Vygeneruj odlehčenou variantu bez zrcadla

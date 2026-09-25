@@ -68,6 +68,16 @@ test('neinteraktivní generování s -y projde', async () => {
   assert.deepEqual(config.agents, ['cursor', 'copilot']);
 });
 
+test('bez --tooling se použije výchozí node tooling', async () => {
+  const target = path.join(makeTempDir('scaffold-cli-'), 'default-tooling');
+  await capture([target, '-y']);
+
+  const config = JSON.parse(readText(target, '.scaffold.json'));
+  assert.equal(config.tooling, 'node');
+  assert.ok(fs.existsSync(path.join(target, 'scripts/new-layer.mjs')));
+  assert.ok(!fs.existsSync(path.join(target, 'scripts/new-layer.ps1')));
+});
+
 test('--agents all zapne všechny ekosystémy', async () => {
   const target = path.join(makeTempDir('scaffold-cli-'), 'all');
   await capture([target, '--agents', 'all', '-y']);
