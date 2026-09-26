@@ -22,7 +22,7 @@ Generátor nemá žádné závislosti — stačí Node.js >= 20. Balíček zatí
 publikovaný v npm registru, takže se spouští ze zdrojů:
 
 ```bash
-git clone <adresa-repa> create-codebase-scaffold && cd create-codebase-scaffold
+git clone https://github.com/Utalag/create-codebase-scaffold.git create-codebase-scaffold && cd create-codebase-scaffold
 node bin/create.js my-app
 ```
 
