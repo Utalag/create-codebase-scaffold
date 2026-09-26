@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+<!--#if full-->
+  # Verifies that the root .cursor/ is in sync with the sources in the layers.
+  agent-config:
+    name: Agent config in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify root .cursor is in sync with the layer sources
+<!--#if tooling_pwsh-->
+        shell: pwsh
+        run: ./scripts/sync-agent-config.ps1 -Check
+<!--#endif-->
+<!--#if tooling_node-->
+        run: node scripts/sync-agent-config.mjs --check
+<!--#endif-->
+
+<!--#endif-->
+  # Discovers layers dynamically, so a new layer needs no manual CI change.
+  discover-layers:
+    name: Discover layers
+    runs-on: ubuntu-latest
+    outputs:
+      layers: ${{ steps.list.outputs.layers }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the layer list
+        id: list
+<!--#if tooling_pwsh-->
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $layers = @(
+            Get-ChildItem -Directory src |
+              Where-Object {
+                $_.Name -notlike '_*' -and (Test-Path (Join-Path $_.FullName 'AGENTS.md'))
+              } |
+              Select-Object -ExpandProperty Name |
+              Sort-Object
+          )
+          if ($layers.Count -eq 0) { throw 'No layer found in src/.' }
+          $json = ConvertTo-Json -InputObject ([string[]]$layers) -Compress
+          Write-Host "Layers found: $json"
+          "layers=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+<!--#endif-->
+<!--#if tooling_node-->
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t layers < <(
+            find src -mindepth 1 -maxdepth 1 -type d | while read -r dir; do
+              case "$(basename "$dir")" in
+                _*) continue ;;
+              esac
+              [ -f "$dir/AGENTS.md" ] && basename "$dir"
+            done | sort
+          )
+          if [ "${#layers[@]}" -eq 0 ]; then
+            echo 'No layer found in src/.' >&2
+            exit 1
+          fi
+          json=$(printf '%s\n' "${layers[@]}" | jq -R . | jq -sc .)
+          echo "Layers found: $json"
+          echo "layers=$json" >> "$GITHUB_OUTPUT"
+<!--#endif-->
+
+  # Each layer is verified and tested separately and in parallel.
+  layers:
+    name: Layer ${{ matrix.layer }}
+    needs: discover-layers
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        layer: ${{ fromJson(needs.discover-layers.outputs.layers) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify the layer structure and configuration
+<!--#if tooling_pwsh-->
+        shell: pwsh
+        run: ./scripts/verify-layer.ps1 -Layer ${{ matrix.layer }}
+<!--#endif-->
+<!--#if tooling_node-->
+        run: node scripts/verify-layer.mjs --layer ${{ matrix.layer }}
+<!--#endif-->
+
+      - name: Layer tests
+<!--#if tooling_pwsh-->
+        shell: pwsh
+        run: ./scripts/test-layer.ps1 -Layer ${{ matrix.layer }}
+<!--#endif-->
+<!--#if tooling_node-->
+        run: node scripts/test-layer.mjs --layer ${{ matrix.layer }}
+<!--#endif-->

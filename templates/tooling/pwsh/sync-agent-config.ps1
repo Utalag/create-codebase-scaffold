@@ -34,6 +34,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'lib/i18n.ps1')
+
 $scriptDir = $PSScriptRoot
 $root = Split-Path -Parent $scriptDir
 $srcRoot = Join-Path $root 'src'
@@ -284,30 +286,30 @@ if ($Check) {
     $problems = @()
 
     if ($missing.Count -gt 0) {
-        $problems += "Chybějící generované soubory ($($missing.Count)):"
+        $problems += Get-Text 'sync.missing' @{ count = $missing.Count }
         $problems += ($missing | ForEach-Object { "  - $_" })
     }
 
     if ($changed.Count -gt 0) {
-        $problems += "Zastaralé generované soubory ($($changed.Count)):"
+        $problems += Get-Text 'sync.stale' @{ count = $changed.Count }
         $problems += ($changed | ForEach-Object { "  - $_" })
     }
 
     if ($orphans.Count -gt 0) {
-        $problems += "Osiřelé generované soubory ($($orphans.Count)):"
+        $problems += Get-Text 'sync.orphans' @{ count = $orphans.Count }
         $problems += ($orphans | ForEach-Object { "  - $_" })
     }
 
     if ($problems.Count -gt 0) {
-        Write-Host "Agentní konfigurace NENÍ v souladu se zdroji ve vrstvách." -ForegroundColor Red
+        Write-Host (Get-Text 'sync.notInSync') -ForegroundColor Red
         Write-Host ""
         $problems | ForEach-Object { Write-Host $_ }
         Write-Host ""
-        Write-Host "Spusť: pwsh -File scripts/sync-agent-config.ps1" -ForegroundColor Yellow
+        Write-Host (Get-Text 'sync.runHint' @{ cmd = 'pwsh -File scripts/sync-agent-config.ps1' }) -ForegroundColor Yellow
         exit 1
     }
 
-    Write-Host "Agentní konfigurace je v souladu ($($expected.Count) generovaných souborů)." -ForegroundColor Green
+    Write-Host (Get-Text 'sync.ok' @{ count = $expected.Count }) -ForegroundColor Green
     exit 0
 }
 
@@ -349,7 +351,7 @@ foreach ($base in @((Join-Path $cursorRoot 'rules/generated'), (Join-Path $curso
         $files = @(Get-ChildItem -LiteralPath $dir.FullName -Recurse -File -Force)
         if ($files.Count -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $dir.FullName '.keep'))) {
             Remove-Item -LiteralPath $dir.FullName -Recurse -Force
-            Write-Host "  remove $($dir.Name)/ (prázdný)"
+            Write-Host (Get-Text 'sync.emptyDir' @{ name = $dir.Name })
         }
     }
 }
@@ -367,5 +369,5 @@ if ($existingManifest -ne (Convert-ToLf $manifestContent)) {
 }
 
 Write-Host ""
-Write-Host "Synchronizace dokončena: $($layers.Count) vrstev, $($expected.Count) generovaných souborů." -ForegroundColor Green
-Write-Host "Zdroj pravdy: src/<Layer>/.cursor/ | Generováno: .cursor/ (needitovat)" -ForegroundColor DarkGray
+Write-Host (Get-Text 'sync.done' @{ layers = $layers.Count; files = $expected.Count }) -ForegroundColor Green
+Write-Host (Get-Text 'sync.sourceNote') -ForegroundColor DarkGray

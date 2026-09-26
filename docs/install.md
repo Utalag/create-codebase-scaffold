@@ -66,12 +66,16 @@ Když `--version` projde, máš funkční generátor.
 ## 5. První projekt
 
 ```bash
-# interaktivní průvodce — doptá se na preset, tooling, machinery a ekosystémy
+# interaktivní průvodce — první otázka je jazyk (cs/en), pak preset, tooling,
+# machinery a ekosystémy
 node bin/create.js my-app
 
 # neinteraktivně
 node bin/create.js my-api --preset hexagonal --tooling node --machinery full \
   --agents cursor,claude
+
+# anglický scaffold i průvodce
+node bin/create.js my-app --lang en
 
 # volný seznam vrstev místo presetu
 node bin/create.js app --layers Domain,Application,Adapters,Shared
@@ -112,8 +116,9 @@ nijak nedotkne.
 | `Neznámá volba: '--foo'` | překlep v názvu volby; CLI neznámé volby odmítne, neignoruje je |
 | `Neznámý ekosystém: ...` | `--agents` bere jen `cursor`, `copilot`, `codex`, `claude` nebo `all` |
 | `Neplatná hodnota pro --tooling` | povoleno je `pwsh` nebo `node` |
+| `Neplatná hodnota pro --lang` | povoleno je `cs` nebo `en` |
 | `pwsh: not found` | zvol `--tooling node`, nebo doinstaluj PowerShell 7 |
-| `verify-layer` hlásí nevyplněné placeholdery | v `AGENTS.md` vrstvy zůstaly markery `DOPLŇ:`; nahraď je konkrétními guardrails |
+| `verify-layer` hlásí nevyplněné placeholdery | v `AGENTS.md` vrstvy zůstaly markery `DOPLŇ:` (cs) / `TODO:` (en); nahraď je konkrétními guardrails |
 | příkaz `create-codebase-scaffold` není nalezen | globální instalace nebo `npm link` neproběhly, nebo `PATH` neobsahuje npm prefix |
 
 ## Související dokumentace

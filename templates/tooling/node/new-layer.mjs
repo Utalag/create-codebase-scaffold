@@ -16,6 +16,7 @@ import {
   walkFiles,
   writeText,
 } from './lib/util.mjs';
+import { placeholderMarker, t } from './lib/i18n.mjs';
 
 /**
  * Založí novou architektonickou vrstvu v src/.
@@ -32,21 +33,21 @@ import {
  *
  * Použití: node scripts/new-layer.mjs --name Billing
  */
+const USAGE = 'node scripts/new-layer.mjs --name Billing';
+const SYNC_SCRIPT = 'scripts/sync-agent-config.mjs';
+
 const args = parseArgs(process.argv.slice(2));
 const inputName = typeof args.name === 'string' ? args.name : args._[0];
 const force = Boolean(args.force);
 
 if (!inputName) {
-  console.error('Chyba: chybí název vrstvy. Použití: node scripts/new-layer.mjs --name Billing');
+  console.error(t('new.nameMissing', { usage: USAGE }));
   process.exit(1);
 }
 
 const layer = toPascalCase(inputName);
 if (!/^[A-Z][A-Za-z0-9]*$/.test(layer)) {
-  console.error(
-    `Chyba: neplatný název vrstvy '${inputName}'. Povoleno je PascalCase z písmen a číslic, ` +
-      "např. 'Billing' nebo 'AntiFraud'.",
-  );
+  console.error(t('new.invalidName', { name: inputName }));
   process.exit(1);
 }
 
@@ -55,12 +56,12 @@ const presetsPath = path.join(scriptsDir, 'layer-presets.json');
 const templateDir = path.join(scriptsDir, 'layer-template');
 
 if (!fs.existsSync(presetsPath)) {
-  console.error(`Chyba: chybí ${presetsPath} — nelze zjistit guardrails vrstvy.`);
+  console.error(t('new.presetsMissing', { path: presetsPath }));
   process.exit(1);
 }
 
 if (!fs.existsSync(templateDir)) {
-  console.error(`Chyba: chybí ${templateDir} — nelze vygenerovat vrstvu.`);
+  console.error(t('new.templateMissing', { path: templateDir }));
   process.exit(1);
 }
 
@@ -84,13 +85,11 @@ const allowedDeps = knownArchetype
 
 let dependsOn;
 if (!knownArchetype) {
-  dependsOn =
-    'DOPLŇ: Vyjmenuj, které vrstvy smí tato vrstva importovat a které nikdy. ' +
-    'Odvoď to od směru závislostí v `src/AGENTS.md`.';
+  dependsOn = t('new.dependsUnknown');
 } else if (allowedDeps.length === 0) {
-  dependsOn = 'Nesmí záviset na žádné jiné vrstvě.';
+  dependsOn = t('new.dependsNone');
 } else {
-  dependsOn = `Smí záviset pouze na ${allowedDeps.map((name) => `\`${name}\``).join(', ')}.`;
+  dependsOn = t('new.dependsOnly', { deps: allowedDeps.map((name) => `\`${name}\``).join(', ') });
 }
 
 const tokens = {
@@ -159,15 +158,15 @@ registerLayerInConfig(layer);
 const machinery = readProjectConfig().machinery;
 
 console.log('');
-console.log(`Vrstva '${layer}' byla založena: src/${layer}`);
+console.log(t('new.created', { layer }));
 
 if (skipped.length > 0) {
-  console.log(`Přeskočeno existujících souborů: ${skipped.length} (přepíše jen --force).`);
+  console.log(t('new.skipped', { count: skipped.length }));
 }
 
 if (!knownArchetype) {
   console.log('');
-  console.log(`Pozor: použit obecný archetyp. Nahraď markery DOPLŇ: v src/${layer}/AGENTS.md.`);
+  console.log(t('new.genericArchetype', { marker: placeholderMarker(), layer }));
 }
 
 // U plné konfigurace se root .cursor/ udržuje jako zrcadlo zdrojů ve vrstvách.
@@ -179,31 +178,31 @@ if (machinery === 'full') {
 
   if (fs.existsSync(syncScript)) {
     console.log('');
-    console.log('Synchronizuji agentní konfiguraci do root .cursor/...');
+    console.log(t('new.syncing'));
 
     const sync = spawnSync(process.execPath, [syncScript], { cwd: projectRoot, stdio: 'inherit' });
 
     if (sync.status !== 0) {
-      console.error(`Chyba: synchronizace agentní konfigurace selhala (exit ${sync.status ?? 1}).`);
+      console.error(t('new.syncFailed', { code: sync.status ?? 1 }));
       process.exit(sync.status ?? 1);
     }
   }
 }
 
 console.log('');
-console.log('Další kroky:');
+console.log(t('new.nextSteps'));
 
 const steps = [
-  `Uprav guardrails:          src/${layer}/AGENTS.md`,
-  'Doplň vrstvu do pravidel:  src/AGENTS.md a docs/layers.md (skript je needituje)',
+  t('new.step.guardrails', { layer }),
+  t('new.step.rules'),
 ];
 
 if (machinery === 'full') {
-  steps.push('Zkontroluj sync:           node scripts/sync-agent-config.mjs --check');
+  steps.push(t('new.step.sync', { cmd: `node ${SYNC_SCRIPT} --check` }));
 }
 
-steps.push(`Ověř strukturu:            node scripts/verify-layer.mjs --layer ${layer}`);
-steps.push(`Spusť testy:               node scripts/test-layer.mjs --layer ${layer}`);
+steps.push(t('new.step.verify', { cmd: `node scripts/verify-layer.mjs --layer ${layer}` }));
+steps.push(t('new.step.test', { cmd: `node scripts/test-layer.mjs --layer ${layer}` }));
 
 steps.forEach((step, index) => console.log(`  ${index + 1}. ${step}`));
 console.log('');

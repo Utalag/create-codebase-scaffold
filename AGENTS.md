@@ -10,6 +10,8 @@ scaffold samotný. Nezakládej v něm vrstvy ani negeneruj strukturu projektu.
 | `bin/create.js` | CLI vstup, tenký wrapper nad `lib/cli.js` |
 | `lib/` | logika generátoru (`cli.js`, `generator.js`, `presets.js`, `render.js`, `naming.js`, `fs-utils.js`, `prompts.js`) |
 | `templates/` | **šablony vygenerovaného projektu** — tady se píše jeho obsah |
+| `templates/i18n/en/` | anglický overlay šablon (stejné relativní cesty jako `templates/`); chybějící soubor se bere ze základu (cs) |
+| `templates/locales/{cs,en}.json` | texty skriptů vygenerovaného projektu pro runtime i18n |
 | `templates/tooling/node/` | skripty projektu ve variantě Node (`.mjs` + `lib/*.mjs`) |
 | `templates/tooling/pwsh/` | skripty projektu ve variantě PowerShell (`.ps1` + `lib/*.ps1`) |
 | `test/` | testy generátoru (`npm test`) |
@@ -32,8 +34,11 @@ v `templates/layer/` a jako data v `lib/presets.js`. Tento soubor popisuje
 - Názvy vrstev jsou vždy PascalCase. Kebab-case slug se používá jen pro názvy
   artefaktů (`.cursor` soubory, CI joby).
 - Udržuj obě tooling varianty (`templates/tooling/pwsh` a `templates/tooling/node`)
-  funkčně shodné a obě dokumentované (EN i CZ).
+ funkčně shodné a obě dokumentované (EN i CZ).
 - Udržuj shodné chování pro `machinery=full` i `lean`.
+- Udržuj oba jazyky scaffoldu (`--lang cs|en`). Texty šablon drž v obou
+ variantách (`templates/` + `templates/i18n/en/`), texty skriptů v
+ `templates/locales/{cs,en}.json` a dynamické texty v `lib/presets.js`/`lib/render.js`.
 - Nová funkce bez testu se nepovažuje za hotovou.
 
 ## Než začneš
@@ -53,8 +58,8 @@ skončit stejnou sync smyčkou.
 
 - `npm test` prochází.
 - Vygenerovaný projekt projde `sync-agent-config --check` i `verify-layer`
-  pro každou vrstvu, a to pro obě tooling varianty (`node` i `pwsh`) a oba
-  režimy (`full` i `lean`). Rychlá kontrola: `node examples/generate.mjs --force --verify`.
+ pro každou vrstvu, a to pro obě tooling varianty (`node` i `pwsh`), oba
+ režimy (`full` i `lean`) i oba jazyky (`cs` i `en`). Rychlá kontrola: `node examples/generate.mjs --force --verify`.
 - `new-layer`, `rename-layer` i `delete-layer` fungují shodně v `node` i `pwsh`
   (test `test/layer-lifecycle.test.js`; pwsh část se přeskočí, když `pwsh` není).
 - Ve výstupu nezůstaly nerozřešené tokeny `__TOKEN__` (výjimkou je záměrně

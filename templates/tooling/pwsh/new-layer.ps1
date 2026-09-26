@@ -37,6 +37,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'lib/i18n.ps1')
+
 $scriptDir = $PSScriptRoot
 $root = Split-Path -Parent $scriptDir
 $srcRoot = Join-Path $root 'src'
@@ -72,7 +74,7 @@ function Get-LayerTitle {
 $layer = ConvertTo-PascalCase -Value $Name
 
 if ($layer -notmatch '^[A-Z][A-Za-z0-9]*$') {
-    throw "Neplatný název vrstvy '$Name'. Povoleno je PascalCase z písmen a číslic, např. 'Billing' nebo 'AntiFraud'."
+    throw (Get-Text 'new.invalidName' @{ name = $Name })
 }
 
 $layerSlug = Get-LayerSlug -Value $layer
@@ -85,7 +87,7 @@ $layerDir = Join-Path $srcRoot $layer
 
 $presetsPath = Join-Path $scriptDir 'layer-presets.json'
 if (-not (Test-Path -LiteralPath $presetsPath)) {
-    throw "Chybí $presetsPath — nelze zjistit guardrails vrstvy."
+    throw (Get-Text 'new.presetsMissing' @{ path = $presetsPath })
 }
 
 $presets = Get-Content -LiteralPath $presetsPath -Raw | ConvertFrom-Json
@@ -108,13 +110,13 @@ if ($knownArchetype) {
 }
 
 if (-not $knownArchetype) {
-    $dependsOn = 'DOPLŇ: Vyjmenuj, které vrstvy smí tato vrstva importovat a které nikdy. Odvoď to od směru závislostí v `src/AGENTS.md`.'
+    $dependsOn = Get-Text 'new.dependsUnknown'
 }
 elseif ($allowedDeps.Count -eq 0) {
-    $dependsOn = 'Nesmí záviset na žádné jiné vrstvě.'
+    $dependsOn = Get-Text 'new.dependsNone'
 }
 else {
-    $dependsOn = 'Smí záviset pouze na ' + (($allowedDeps | ForEach-Object { "``$_``" }) -join ', ') + '.'
+    $dependsOn = Get-Text 'new.dependsOnly' @{ deps = (($allowedDeps | ForEach-Object { "``$_``" }) -join ', ') }
 }
 
 $guardrails = ($archetype.guardrails | ForEach-Object { "- $_" }) -join "`n"
@@ -172,7 +174,7 @@ function Write-NewFile {
 
 $templateDir = Join-Path $scriptDir 'layer-template'
 if (-not (Test-Path -LiteralPath $templateDir)) {
-    throw "Chybí $templateDir — nelze vygenerovat vrstvu."
+    throw (Get-Text 'new.templateMissing' @{ path = $templateDir })
 }
 
 foreach ($file in @(Get-ChildItem -LiteralPath $templateDir -Recurse -File -Force)) {
@@ -236,10 +238,10 @@ function Invoke-AgentConfigSync {
     if (-not (Test-Path -LiteralPath $syncScript)) { return }
 
     Write-Host ""
-    Write-Host "Synchronizuji agentní konfiguraci do root .cursor/..."
+    Write-Host (Get-Text 'new.syncing')
     & $syncScript
     if (-not $?) {
-        throw "Synchronizace agentní konfigurace selhala."
+        throw (Get-Text 'new.syncFailed' @{ code = $LASTEXITCODE })
     }
 }
 
@@ -248,15 +250,15 @@ function Invoke-AgentConfigSync {
 # ---------------------------------------------------------------------------
 
 Write-Host ""
-Write-Host "Vrstva '$layer' byla založena: src/$layer" -ForegroundColor Green
+Write-Host (Get-Text 'new.created' @{ layer = $layer }) -ForegroundColor Green
 $skippedCount = $skipped.Count
 if ($skippedCount -gt 0) {
-    Write-Host "Přeskočeno existujících souborů: $skippedCount (přepíše jen -Force)." -ForegroundColor Yellow
+    Write-Host (Get-Text 'new.skipped' @{ count = $skippedCount }) -ForegroundColor Yellow
 }
 
 if (-not $knownArchetype) {
     Write-Host ""
-    Write-Host "Pozor: použit obecný archetyp. Nahraď markery DOPLŇ: v src/$layer/AGENTS.md." -ForegroundColor Yellow
+    Write-Host (Get-Text 'new.genericArchetype' @{ marker = (Get-Text 'common.marker'); layer = $layer }) -ForegroundColor Yellow
 }
 
 if ($machinery -eq 'full') {
@@ -264,16 +266,16 @@ if ($machinery -eq 'full') {
 }
 
 Write-Host ""
-Write-Host "Další kroky:"
+Write-Host (Get-Text 'new.nextSteps')
 
 $steps = New-Object System.Collections.Generic.List[string]
-$steps.Add("Uprav guardrails:          src/$layer/AGENTS.md")
-$steps.Add('Doplň vrstvu do pravidel:  src/AGENTS.md a docs/layers.md (skript je needituje)')
+$steps.Add((Get-Text 'new.step.guardrails' @{ layer = $layer }))
+$steps.Add((Get-Text 'new.step.rules'))
 if ($machinery -eq 'full') {
-    $steps.Add('Zkontroluj sync:           pwsh -File scripts/sync-agent-config.ps1 -Check')
+    $steps.Add((Get-Text 'new.step.sync' @{ cmd = 'pwsh -File scripts/sync-agent-config.ps1 -Check' }))
 }
-$steps.Add("Ověř strukturu:            pwsh -File scripts/verify-layer.ps1 -Layer $layer")
-$steps.Add("Spusť testy:               pwsh -File scripts/test-layer.ps1 -Layer $layer")
+$steps.Add((Get-Text 'new.step.verify' @{ cmd = "pwsh -File scripts/verify-layer.ps1 -Layer $layer" }))
+$steps.Add((Get-Text 'new.step.test' @{ cmd = "pwsh -File scripts/test-layer.ps1 -Layer $layer" }))
 
 for ($i = 0; $i -lt $steps.Count; $i++) {
     Write-Host ("  {0}. {1}" -f ($i + 1), $steps[$i])

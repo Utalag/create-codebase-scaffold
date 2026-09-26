@@ -13,8 +13,8 @@ které se do projektu teprve zapíšou.
 - [`install.md`](install.md) — požadavky, instalace generátoru a ověření, že běží.
 - [`generator.md`](generator.md) — jak generátor funguje, CLI volby a tok generování.
 - [`layers.md`](layers.md) — presety, archetypy vrstev a jejich guardrails.
-- [`templates.md`](templates.md) — rozložení šablon, placeholdery, podmínky,
-  jak přidat preset, archetyp, ekosystém nebo šablonu.
+- [`templates.md`](templates.md) — rozložení šablon, jazykový overlay `i18n/en/`,
+  placeholdery, podmínky, jak přidat preset, archetyp, ekosystém nebo šablonu.
 - [`agent-config.md`](agent-config.md) — návrh agentní konfigurace ve vygenerovaném
   projektu a rozdíl mezi `full` a `lean`.
 

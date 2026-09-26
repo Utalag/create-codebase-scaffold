@@ -1,0 +1,24 @@
+---
+description: "__LAYER_TITLE__ layer - guardrails and conventions of the layer"
+globs: ["src/__LAYER__/**"]
+alwaysApply: false
+---
+
+# __LAYER_TITLE__ — layer standards
+
+## Responsibility
+
+__RESPONSIBILITY__
+
+## Guardrails
+
+__GUARDRAILS__
+
+## Dependency direction
+
+__DEPENDS_ON__
+
+## Context
+
+The full rules are in `AGENTS.md` (root), `src/AGENTS.md` and `src/__LAYER__/AGENTS.md`.
+When working in the layer, read all three levels; the more specific one takes precedence.

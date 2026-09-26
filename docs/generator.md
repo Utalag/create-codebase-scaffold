@@ -44,6 +44,7 @@ Generátor zapíše do kořene projektu `.scaffold.json`:
   "generator": "create-codebase-scaffold",
   "version": "0.1.0",
   "projectName": "my-app",
+  "lang": "cs",
   "architecture": "clean",
   "layers": ["Domain", "Application", "Infrastructure", "Presentation", "Shared"],
   "tooling": "node",
@@ -54,7 +55,23 @@ Generátor zapíše do kořene projektu `.scaffold.json`:
 ```
 
 Skripty projektu ho čtou, aby věděly, jak širokou kontrolu mají dělat
-(`machinery`) a jaké příkazy mají vypisovat.
+(`machinery`), v jakém jazyce mají mluvit (`lang`) a jaké příkazy mají vypisovat.
+
+## Jazyk scaffoldu
+
+Jazyk se volí jako první otázka průvodce, nebo přes `--lang <cs|en>`. Řídí
+jazyk průvodce a CLI výstupu i jazyk celého vygenerovaného scaffoldu.
+
+- Obsah projektu se bere z `templates/` (čeština, výchozí) a z overlay
+  `templates/i18n/en/` (angličtina). Overlay má stejné relativní cesty; když
+  v něm soubor chybí, použije se základní šablona.
+- Archetypy vrstev (`lib/presets.js`) a strukturální texty (`lib/render.js`) nesou
+  obě jazykové varianty a vybírají se podle `lang`.
+- Skripty vygenerovaného projektu dostanou katalog `scripts/locales/<lang>.json`.
+  Runtime pomocník (`scripts/lib/i18n.mjs`, resp. `i18n.ps1`) čte `lang`
+  z `.scaffold.json` a překládá výstup i chybové hlášky za běhu.
+- Markery k doplnění jsou `DOPLŇ:` (cs) a `TODO:` (en); `verify-layer` odmítne
+  oba.
 
 ## Životní cyklus vrstvy
 

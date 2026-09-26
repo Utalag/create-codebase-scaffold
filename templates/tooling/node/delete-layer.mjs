@@ -4,6 +4,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parseArgs, projectRoot, readProjectConfig, toPascalCase } from './lib/util.mjs';
 import { applyDelete, describeDelete, findActiveLayerDir } from './lib/layer-map.mjs';
+import { t } from './lib/i18n.mjs';
 
 /**
  * Vyřadí vrstvu z živé mapy (soft retire).
@@ -25,28 +26,30 @@ import { applyDelete, describeDelete, findActiveLayerDir } from './lib/layer-map
  *   node scripts/delete-layer.mjs --name Billing --dry-run
  *   node scripts/delete-layer.mjs --name Billing --yes
  */
+const USAGE = 'node scripts/delete-layer.mjs --name Billing --yes';
+
 const args = parseArgs(process.argv.slice(2));
 const inputName = typeof args.name === 'string' ? args.name : args._[0];
 const dryRun = args['dry-run'] === true || !(args.yes === true || args.y === true);
 
 if (!inputName) {
-  console.error('Chyba: chybí název vrstvy. Použití: node scripts/delete-layer.mjs --name Billing --yes');
+  console.error(t('delete.nameMissing', { usage: USAGE }));
   process.exit(1);
 }
 
 const layer = toPascalCase(inputName);
 
 if (!findActiveLayerDir(layer)) {
-  console.error(`Chyba: vrstva '${layer}' není aktivní v src/.`);
+  console.error(t('delete.notActive', { layer }));
   process.exit(1);
 }
 
 if (dryRun) {
   console.log('');
-  console.log(`Plán (dry-run) — vyřazení vrstvy '${layer}':`);
+  console.log(t('delete.planHeader', { layer }));
   for (const line of describeDelete(projectRoot, layer)) console.log(`  - ${line}`);
   console.log('');
-  console.log('Nic se nezměnilo. Spusť s --yes pro provedení (obsah složky zůstane).');
+  console.log(t('delete.planFooter'));
   process.exit(0);
 }
 
@@ -54,20 +57,22 @@ let result;
 try {
   result = applyDelete(projectRoot, layer);
 } catch (error) {
-  console.error(`Chyba: ${error.message}`);
+  console.error(t('common.error', { message: error.message }));
   process.exit(1);
 }
 
 runSyncIfFull();
 
+const configState = t(result.configUpdated ? 'config.updated' : 'config.unchanged');
+
 console.log('');
-console.log(`Vrstva '${result.layer}' byla vyřazena (soft retire):`);
-console.log(`  Složka:      ${result.retiredDir} (obsah zachován)`);
-console.log(`  Poznámka:    ${result.retiredDir}/RETIRED.md`);
-console.log(`  Mapa:        .scaffold.json ${result.configUpdated ? 'aktualizováno' : 'bez změny'}`);
-console.log(`  Artefakty:   odstraněno ${result.removedArtifacts.length} z root .cursor/`);
+console.log(t('delete.resultHeader', { layer: result.layer }));
+console.log(t('delete.resultFolder', { dir: result.retiredDir }));
+console.log(t('delete.resultNote', { dir: result.retiredDir }));
+console.log(t('delete.resultConfig', { state: configState }));
+console.log(t('delete.resultArtifacts', { count: result.removedArtifacts.length }));
 console.log('');
-console.log('Vrstva už není aktivní. Hard delete (smazání složky) proveď ručně, pokud ji nechceš archivovat.');
+console.log(t('delete.footer'));
 console.log('');
 
 function runSyncIfFull() {
@@ -77,10 +82,10 @@ function runSyncIfFull() {
   if (!fs.existsSync(syncScript)) return;
 
   console.log('');
-  console.log('Synchronizuji agentní konfiguraci do root .cursor/...');
+  console.log(t('delete.syncing'));
   const sync = spawnSync(process.execPath, [syncScript], { cwd: projectRoot, stdio: 'inherit' });
   if (sync.status !== 0) {
-    console.error(`Chyba: synchronizace selhala (exit ${sync.status ?? 1}).`);
+    console.error(t('delete.syncFailed', { code: sync.status ?? 1 }));
     process.exit(sync.status ?? 1);
   }
 }

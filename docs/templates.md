@@ -33,8 +33,31 @@ templates/
   skills/layer-management/SKILL.md
   tooling/pwsh/*.ps1 + lib/*.ps1 + README.md + README.cs.md
   tooling/node/*.mjs + lib/*.mjs + README.md + README.cs.md
+  locales/cs.json + locales/en.json   # texty pro skripty projektu (runtime)
+  i18n/en/…                    # anglický overlay stejných cest jako výše
   hooks/hooks.json + sync-on-edit.ps1 + sync-on-edit.mjs
 ```
+
+## Jazyk: overlay `templates/i18n/<lang>/`
+
+Základní strom `templates/` je český (výchozí jazyk `cs`). Anglická varianta se
+řeší **overlayem**: `templates/i18n/en/` obsahuje soubory se stejnými relativními
+cestami, které se při `--lang en` použijí místo základních. Když v overlayi
+soubor chybí, použije se základní šablona beze změny (viz `templateAbsolute`
+v `lib/generator.js`).
+
+Overlay pokrývá:
+
+- `project/…` (kořen projektu, `src/AGENTS.md`, `docs/…`, CI),
+- `layer/…` (anatomie vrstvy),
+- `ecosystems/…` (Cursor, Copilot, Claude),
+- `skills/layer-management/SKILL.md`.
+
+Dynamické texty (archetypy vrstev a tabulky/pravidla závislostí) jsou přímo
+v `lib/presets.js` a `lib/render.js` v obou jazycích. Texty skriptů projektu jsou
+v `templates/locales/<lang>.json` a generátor zapíše jen zvolený katalog.
+README skriptů se bere z `tooling/<x>/README.md` (EN) nebo `README.cs.md` (CS).
+
 
 ## Názvy šablon
 

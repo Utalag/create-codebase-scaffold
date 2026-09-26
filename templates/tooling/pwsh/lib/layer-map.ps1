@@ -14,6 +14,8 @@
 
 $RetiredPrefix = '_retired-'
 
+. (Join-Path $PSScriptRoot 'i18n.ps1')
+
 # Soubory, které nesou mapu vrstev nebo na vrstvy odkazují.
 $MapFiles = @('AGENTS.md', 'README.md', 'src/AGENTS.md', 'docs/layers.md', 'docs/agent-config.md')
 
@@ -208,15 +210,15 @@ function Remove-LayerReferences {
         if ($line.Contains("src/$Layer/")) { continue }
 
         # Popis architektury (AGENTS.md, docs/layers.md, README.md).
-        if (($trimmed -match '^Projekt používá architekturu') -or ($trimmed -match '^\*\*[^*]+\*\*\s+[—–-]\s+')) {
+        if (($trimmed -match '^(?:Projekt používá architekturu|The project uses)') -or ($trimmed -match '^\*\*[^*]+\*\*\s+[—–-]\s+')) {
             $cleaned = $line -replace ('\s*,\s*' + $nameEsc + '(?=\s*[.,])'), ''
             $cleaned = $cleaned -replace ($nameEsc + ',\s*'), ''
             $kept.Add($cleaned)
             continue
         }
 
-        # Inline seznam vrstev: "Vrstvy: `A`, `B`, ..."
-        if ($trimmed -match '^Vrstvy:\s') {
+        # Inline seznam vrstev: "Vrstvy: `A`, `B`, ..." (EN "Layers: ...").
+        if ($trimmed -match '^(?:Vrstvy|Layers):\s') {
             $cleaned = $line -replace ('\s*' + $tokenEsc + ',\s*'), ' '
             $cleaned = $cleaned -replace ('\s*,\s*' + $tokenEsc), ''
             $cleaned = $cleaned -replace $tokenEsc, ''
@@ -224,29 +226,29 @@ function Remove-LayerReferences {
             continue
         }
 
-        # Pravidlo závislostí: "- `X` nesmí importovat `A`, `Layer`."
-        $forbidden = [regex]::Match($trimmed, '^- (`[^`]+`) nesmí importovat (.+)\.$')
+        # Pravidlo závislostí: "- `X` nesmí importovat `A`, `Layer`." (EN "must not import").
+        $forbidden = [regex]::Match($trimmed, '^- `([^`]+)` (?:nesmí importovat|must not import) (.+)\.$')
         if ($forbidden.Success) {
             $subject = $forbidden.Groups[1].Value
-            if ($subject -eq $nameToken) { continue }
+            if ($subject -eq $Layer) { continue }
             if ($line.Contains($nameToken)) {
                 $deps = @($forbidden.Groups[2].Value -split ',\s*' |
                     ForEach-Object { $_.Trim() } |
                     Where-Object { $_ -and $_ -ne $nameToken })
                 if ($deps.Count -eq 0) { continue }
-                $kept.Add("- $subject nesmí importovat $($deps -join ', ').")
+                $kept.Add((Get-Text 'map.forbidden' @{ subject = $subject; deps = ($deps -join ', ') }))
                 continue
             }
         }
 
         # Věta o povolených závislostech.
-        $allowed = [regex]::Match($trimmed, '^Smí záviset pouze na (.+)\.$')
+        $allowed = [regex]::Match($trimmed, '^(?:Smí záviset pouze na|May depend only on) (.+)\.$')
         if ($allowed.Success -and $line.Contains($nameToken)) {
             $deps = @($allowed.Groups[1].Value -split ',\s*' |
                 ForEach-Object { $_.Trim() } |
                 Where-Object { $_ -and $_ -ne $nameToken })
-            if ($deps.Count -eq 0) { $kept.Add('Nesmí záviset na žádné jiné vrstvě.') }
-            else { $kept.Add("Smí záviset pouze na $($deps -join ', ').") }
+            if ($deps.Count -eq 0) { $kept.Add((Get-Text 'map.dependsNone')) }
+            else { $kept.Add((Get-Text 'map.dependsOnly' @{ deps = ($deps -join ', ') })) }
             continue
         }
 
@@ -372,14 +374,14 @@ function Invoke-DeleteLayer {
     param([string]$Root, [string]$Layer)
 
     $layerDir = Get-ActiveLayerDir -Root $Root -Name $Layer
-    if (-not $layerDir) { throw "Vrstva '$Layer' není aktivní v src/." }
+    if (-not $layerDir) { throw (Get-Text 'map.notActive' @{ layer = $Layer }) }
 
     $resolved = Split-Path -Leaf $layerDir
     $slug = Get-LayerSlug -Value $resolved
     $retiredDir = Join-Path (Split-Path -Parent $layerDir) ($RetiredPrefix + $resolved)
 
     if (Test-Path -LiteralPath $retiredDir) {
-        throw "Vyřazená složka už existuje: $retiredDir."
+        throw (Get-Text 'map.retiredExists' @{ path = ("src/{0}{1}" -f $RetiredPrefix, $resolved) })
     }
 
     Move-Item -LiteralPath $layerDir -Destination $retiredDir
@@ -387,15 +389,15 @@ function Invoke-DeleteLayer {
     $notePath = Join-Path $retiredDir 'RETIRED.md'
     if (-not (Test-Path -LiteralPath $notePath)) {
         $note = @(
-            "# Vyřazená vrstva: $resolved",
+            (Get-Text 'map.retired.noteTitle' @{ layer = $resolved }),
             '',
-            'Tato vrstva byla vyřazena skriptem `delete-layer` (soft retire).',
-            'Obsah složky je záměrně zachovaný, ale vrstva už není součástí živé mapy:',
+            (Get-Text 'map.retired.noteIntro'),
+            (Get-Text 'map.retired.noteKept'),
             '',
-            '- startuje prefixem `_retired-`, takže ji sync, verify ani CI neberou jako aktivní,',
-            '- byla odebrána z `.scaffold.json` a z odkazů v instrukcích.',
+            (Get-Text 'map.retired.noteBullet1'),
+            (Get-Text 'map.retired.noteBullet2'),
             '',
-            'Pokud ji chceš opravdu smazat, smaž celou tuto složku ručně (hard delete).',
+            (Get-Text 'map.retired.noteHard'),
             ''
         ) -join "`n"
         Write-Utf8Lf -Path $notePath -Content $note
@@ -446,20 +448,20 @@ function Invoke-RenameLayer {
     param([string]$Root, [string]$OldName, [string]$NewName)
 
     $layerDir = Get-ActiveLayerDir -Root $Root -Name $OldName
-    if (-not $layerDir) { throw "Vrstva '$OldName' není aktivní v src/." }
+    if (-not $layerDir) { throw (Get-Text 'map.notActive' @{ layer = $OldName }) }
 
     $resolvedOld = Split-Path -Leaf $layerDir
     $resolvedNew = $NewName
 
     if (-not (Test-ActiveLayerName $resolvedNew)) {
-        throw "Neplatný název vrstvy '$NewName'. Povoleno je PascalCase z písmen a číslic."
+        throw (Get-Text 'map.invalidName' @{ name = $NewName })
     }
     if ($resolvedNew -eq $resolvedOld) {
-        throw "Nová vrstva je stejná jako původní ('$resolvedOld')."
+        throw (Get-Text 'map.sameName' @{ name = $resolvedOld })
     }
 
     $target = Join-Path (Split-Path -Parent $layerDir) $resolvedNew
-    if (Test-Path -LiteralPath $target) { throw "Cílová složka už existuje: src/$resolvedNew." }
+    if (Test-Path -LiteralPath $target) { throw (Get-Text 'map.targetExists' @{ name = $resolvedNew }) }
 
     $oldSlug = Get-LayerSlug -Value $resolvedOld
     $newSlug = Get-LayerSlug -Value $resolvedNew

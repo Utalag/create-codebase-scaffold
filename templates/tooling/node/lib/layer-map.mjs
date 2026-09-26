@@ -12,6 +12,7 @@ import {
   toPascalCase,
   writeText,
 } from './util.mjs';
+import { t } from './i18n.mjs';
 
 export { RETIRED_PREFIX };
 
@@ -185,9 +186,12 @@ export function pruneLayerReferences(text, layerName, layerSlugValue) {
     if (line.includes(`src/${layerName}/`)) continue;
 
     // Popis architektury vyjmenovává vrstvy bez backticků. V AGENTS.md a
-    // docs/layers.md začíná "Projekt používá architekturu", v README.md je to
-    // řádek "**Label** — Domain, Application, Layer.".
-    if (/^Projekt používá architekturu/.test(trimmed) || /^\*\*[^*]+\*\*\s+[—–-]\s+/.test(trimmed)) {
+    // docs/layers.md začíná "Projekt používá architekturu" (EN "The project
+    // uses"), v README.md je to řádek "**Label** — Domain, Application, Layer.".
+    if (
+      /^(?:Projekt používá architekturu|The project uses)/.test(trimmed) ||
+      /^\*\*[^*]+\*\*\s+[—–-]\s+/.test(trimmed)
+    ) {
       const cleaned = line
         .replace(new RegExp(`\\s*,\\s*${nameRe}(?=\\s*[.,])`), '')
         .replace(new RegExp(`${nameRe},\\s*`), '');
@@ -195,8 +199,8 @@ export function pruneLayerReferences(text, layerName, layerSlugValue) {
       continue;
     }
 
-    // Inline seznam vrstev: "Vrstvy: `A`, `B`, ..."
-    if (/^Vrstvy:\s/.test(trimmed)) {
+    // Inline seznam vrstev: "Vrstvy: `A`, `B`, ..." (EN "Layers: ...").
+    if (/^(?:Vrstvy|Layers):\s/.test(trimmed)) {
       const cleaned = line
         .replace(new RegExp(`\\s*${nameToken},\\s*`), ' ')
         .replace(new RegExp(`\\s*,\\s*${nameToken}`), '')
@@ -206,8 +210,8 @@ export function pruneLayerReferences(text, layerName, layerSlugValue) {
       continue;
     }
 
-    // Pravidlo závislostí: "- `X` nesmí importovat `A`, `Layer`."
-    const forbidden = /^- `([^`]+)` nesmí importovat (.+)\.$/.exec(trimmed);
+    // Pravidlo závislostí: "- `X` nesmí importovat `A`, `Layer`." (EN "must not import").
+    const forbidden = /^- `([^`]+)` (?:nesmí importovat|must not import) (.+)\.$/.exec(trimmed);
     if (forbidden) {
       const subject = forbidden[1];
       if (subject === layerName) continue; // pravidlo o vyřazené vrstvě zaniká
@@ -217,20 +221,20 @@ export function pruneLayerReferences(text, layerName, layerSlugValue) {
           .map((item) => item.trim())
           .filter((item) => item && item !== nameToken);
         if (deps.length === 0) continue;
-        kept.push(`- \`${subject}\` nesmí importovat ${deps.join(', ')}.`);
+        kept.push(t('map.forbidden', { subject, deps: deps.join(', ') }));
         continue;
       }
     }
 
     // Věta o povolených závislostech v AGENTS.md ostatních vrstev.
-    const allowed = /^Smí záviset pouze na (.+)\.$/.exec(trimmed);
+    const allowed = /^(?:Smí záviset pouze na|May depend only on) (.+)\.$/.exec(trimmed);
     if (allowed && line.includes(nameToken)) {
       const deps = allowed[1]
         .split(/,\s*/)
         .map((item) => item.trim())
         .filter((item) => item && item !== nameToken);
-      if (deps.length === 0) kept.push('Nesmí záviset na žádné jiné vrstvě.');
-      else kept.push(`Smí záviset pouze na ${deps.join(', ')}.`);
+      if (deps.length === 0) kept.push(t('map.dependsNone'));
+      else kept.push(t('map.dependsOnly', { deps: deps.join(', ') }));
       continue;
     }
 
@@ -341,16 +345,16 @@ function renameRootArtifacts(targetRoot, oldSlug, newSlug) {
 /** Lidsky čitelný plán operace pro `--dry-run`. */
 export function describeDelete(targetRoot, layerName) {
   const layerDir = findActiveLayerDir(layerName, targetRoot);
-  if (!layerDir) throw new Error(`Vrstva '${layerName}' není aktivní v src/.`);
+  if (!layerDir) throw new Error(t('map.notActive', { layer: layerName }));
 
   const slug = layerSlug(layerName);
   const retired = `${RETIRED_PREFIX}${path.basename(layerDir)}`;
   const lines = [
-    `Přejmenovat složku:  src/${path.basename(layerDir)} -> src/${retired}`,
-    `Zapsat poznámku:     src/${retired}/RETIRED.md`,
-    `Odebrat z mapy:      .scaffold.json (layers)`,
-    `Odstranit artefakty: .cursor/rules/${slug}.mdc, .cursor/agents/${slug}-*, .cursor/skills/${slug}-*, .cursor/rules/generated/${slug}`,
-    `Vyčistit zmínky:     ${MAP_FILES.join(', ')} a AGENTS.md ostatních vrstev`,
+    t('map.delete.planRename', { old: path.basename(layerDir), retired }),
+    t('map.delete.planNote', { retired }),
+    t('map.delete.planConfig'),
+    t('map.delete.planArtifacts', { slug }),
+    t('map.delete.planCleanup', { files: MAP_FILES.join(', ') }),
   ];
 
   return lines;
@@ -359,28 +363,28 @@ export function describeDelete(targetRoot, layerName) {
 /** Provede soft retire vrstvy. Vrací přehled o změnách. */
 export function applyDelete(targetRoot, layerName) {
   const layerDir = findActiveLayerDir(layerName, targetRoot);
-  if (!layerDir) throw new Error(`Vrstva '${layerName}' není aktivní v src/.`);
+  if (!layerDir) throw new Error(t('map.notActive', { layer: layerName }));
 
   const resolved = path.basename(layerDir);
   const slug = layerSlug(resolved);
   const retiredDir = path.join(path.dirname(layerDir), `${RETIRED_PREFIX}${resolved}`);
 
   if (fs.existsSync(retiredDir)) {
-    throw new Error(`Vyřazená složka už existuje: ${path.relative(targetRoot, retiredDir)}.`);
+    throw new Error(t('map.retiredExists', { path: path.relative(targetRoot, retiredDir) }));
   }
 
   fs.renameSync(layerDir, retiredDir);
 
   const note = [
-    `# Vyřazená vrstva: ${resolved}`,
+    t('map.retired.noteTitle', { layer: resolved }),
     '',
-    'Tato vrstva byla vyřazena skriptem `delete-layer` (soft retire).',
-    'Obsah složky je záměrně zachovaný, ale vrstva už není součástí živé mapy:',
+    t('map.retired.noteIntro'),
+    t('map.retired.noteKept'),
     '',
-    '- startuje prefixem `_retired-`, takže ji sync, verify ani CI neberou jako aktivní,',
-    '- byla odebrána z `.scaffold.json` a z odkazů v instrukcích.',
+    t('map.retired.noteBullet1'),
+    t('map.retired.noteBullet2'),
     '',
-    'Pokud ji chceš opravdu smazat, smaž celou tuto složku ručně (hard delete).',
+    t('map.retired.noteHard'),
     '',
   ].join('\n');
 
@@ -407,37 +411,37 @@ export function applyDelete(targetRoot, layerName) {
 /** Lidsky čitelný plán rename operace pro `--dry-run`. */
 export function describeRename(targetRoot, oldName, newName) {
   const layerDir = findActiveLayerDir(oldName, targetRoot);
-  if (!layerDir) throw new Error(`Vrstva '${oldName}' není aktivní v src/.`);
+  if (!layerDir) throw new Error(t('map.notActive', { layer: oldName }));
 
   const resolvedOld = path.basename(layerDir);
   const resolvedNew = toPascalCase(newName);
 
   return [
-    `Přejmenovat složku:  src/${resolvedOld} -> src/${resolvedNew}`,
-    `Aktualizovat mapu:   .scaffold.json (layers)`,
-    `Přepsat zmínky:      všechny projektové soubory (název, slug i titulek)`,
-    `Přejmenovat artefakty: .cursor/rules/<slug>.mdc, .cursor/agents/<slug>-*, .cursor/skills/<slug>-*`,
+    t('map.rename.planRename', { old: resolvedOld, new: resolvedNew }),
+    t('map.rename.planConfig'),
+    t('map.rename.planMentions'),
+    t('map.rename.planArtifacts'),
   ];
 }
 
 /** Provede rename vrstvy. Vrací přehled o změnách. */
 export function applyRename(targetRoot, oldName, newName) {
   const layerDir = findActiveLayerDir(oldName, targetRoot);
-  if (!layerDir) throw new Error(`Vrstva '${oldName}' není aktivní v src/.`);
+  if (!layerDir) throw new Error(t('map.notActive', { layer: oldName }));
 
   const resolvedOld = path.basename(layerDir);
   const resolvedNew = toPascalCase(newName);
 
   if (!isActiveLayerName(resolvedNew)) {
-    throw new Error(`Neplatný název vrstvy '${newName}'. Povoleno je PascalCase z písmen a číslic.`);
+    throw new Error(t('map.invalidName', { name: newName }));
   }
 
   if (resolvedNew === resolvedOld) {
-    throw new Error(`Nová vrstva je stejná jako původní ('${resolvedOld}').`);
+    throw new Error(t('map.sameName', { name: resolvedOld }));
   }
 
   const target = path.join(path.dirname(layerDir), resolvedNew);
-  if (fs.existsSync(target)) throw new Error(`Cílová složka už existuje: src/${resolvedNew}.`);
+  if (fs.existsSync(target)) throw new Error(t('map.targetExists', { name: resolvedNew }));
 
   const oldSlug = layerSlug(resolvedOld);
   const newSlug = layerSlug(resolvedNew);

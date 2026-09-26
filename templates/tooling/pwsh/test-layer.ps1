@@ -23,6 +23,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'lib/i18n.ps1')
+
 $scriptDir = $PSScriptRoot
 $root = Split-Path -Parent $scriptDir
 $srcRoot = Join-Path $root 'src'
@@ -36,29 +38,29 @@ if (-not (Test-Path -LiteralPath $layerDir)) {
 }
 
 if (-not (Test-Path -LiteralPath $layerDir)) {
-    throw "Vrstva '$Layer' neexistuje v src/."
+    throw (Get-Text 'test.layerMissing' @{ layer = $Layer })
 }
 
 $layerName = Split-Path -Leaf $layerDir
 
 if ($layerName -notmatch '^[A-Z][A-Za-z0-9]*$') {
-    throw "Vrstva '$layerName' není aktivní. Vyřazené vrstvy (prefix '_retired-') se netestují."
+    throw (Get-Text 'test.notActive' @{ layer = $layerName })
 }
 
 $runner = Join-Path $layerDir 'tests/run.ps1'
 
 if (-not (Test-Path -LiteralPath $runner)) {
-    Write-Host "Vrstva '$layerName' nemá testovací runner (src/$layerName/tests/run.ps1). Přeskakuji." -ForegroundColor Yellow
+    Write-Host (Get-Text 'test.noRunner' @{ layer = $layerName; runner = "src/$layerName/tests/run.ps1" }) -ForegroundColor Yellow
     exit 0
 }
 
-Write-Host "Testuji vrstvu '$layerName'..." -ForegroundColor Cyan
+Write-Host (Get-Text 'test.testing' @{ layer = $layerName }) -ForegroundColor Cyan
 & $runner -Layer $layerName
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Testy vrstvy '$layerName' selhaly (exit $LASTEXITCODE)." -ForegroundColor Red
+    Write-Host (Get-Text 'test.failed' @{ layer = $layerName; code = $LASTEXITCODE }) -ForegroundColor Red
     exit $LASTEXITCODE
 }
 
-Write-Host "Testy vrstvy '$layerName' prošly." -ForegroundColor Green
+Write-Host (Get-Text 'test.passed' @{ layer = $layerName }) -ForegroundColor Green
 exit 0

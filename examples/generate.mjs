@@ -65,6 +65,18 @@ const EXAMPLES = [
     },
   },
   {
+    id: 'hexagonal-node-en',
+    projectName: 'HexagonalNodeEn',
+    options: {
+      lang: 'en',
+      presetId: 'hexagonal',
+      tooling: 'node',
+      machinery: 'full',
+      agents: ['cursor', 'copilot', 'claude'],
+      ci: true,
+    },
+  },
+  {
     id: 'custom-four-layers',
     projectName: 'CustomFourLayers',
     options: {

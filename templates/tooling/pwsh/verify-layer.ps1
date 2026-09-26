@@ -22,6 +22,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'lib/i18n.ps1')
+
 $scriptDir = $PSScriptRoot
 $root = Split-Path -Parent $scriptDir
 
@@ -58,13 +60,13 @@ function Get-ProjectMachinery {
 
 $layerDir = Resolve-LayerDirectory -Root $root -Name $Layer
 if (-not $layerDir) {
-    throw "Vrstva '$Layer' neexistuje v src/."
+    throw (Get-Text 'verify.layerMissing' @{ layer = $Layer })
 }
 
 $layerName = Split-Path -Leaf $layerDir
 
 if ($layerName -notmatch '^[A-Z][A-Za-z0-9]*$') {
-    throw "Vrstva '$layerName' není aktivní. Vyřazené vrstvy (prefix '_retired-') sync ani verify neberou jako aktivní."
+    throw (Get-Text 'verify.notActive' @{ layer = $layerName })
 }
 
 $required = @(
@@ -87,7 +89,7 @@ $problems = New-Object System.Collections.Generic.List[string]
 foreach ($item in $required) {
     $path = Join-Path $layerDir ($item -replace '/', '\')
     if (-not (Test-Path -LiteralPath $path)) {
-        $problems.Add("chybí povinná položka: $item")
+        $problems.Add((Get-Text 'verify.missingItem' @{ item = $item }))
     }
 }
 
@@ -96,37 +98,37 @@ if (Test-Path -LiteralPath $agentsFile) {
     $agentsText = [System.IO.File]::ReadAllText($agentsFile)
 
     if ($agentsText -notmatch [regex]::Escape('src/AGENTS.md')) {
-        $problems.Add('AGENTS.md neodkazuje na rodičovská pravidla (src/AGENTS.md)')
+        $problems.Add((Get-Text 'verify.noParentLink'))
     }
 
     if ($agentsText -notmatch '(?m)^##\s+Guardrails') {
-        $problems.Add("AGENTS.md neobsahuje sekci '## Guardrails'")
+        $problems.Add((Get-Text 'verify.noGuardrails'))
     }
 
-    if ($agentsText -match '__[A-Z][A-Z_]*__' -or $agentsText -cmatch 'DOPLŇ:') {
-        $problems.Add('AGENTS.md obsahuje nevyplněné placeholdery šablony')
+    if ($agentsText -match '__[A-Z][A-Z_]*__' -or $agentsText -cmatch 'DOPLŇ:' -or $agentsText -cmatch 'TODO:') {
+        $problems.Add((Get-Text 'verify.placeholders'))
     }
 }
 
 $rulesDir = Join-Path $layerDir '.cursor/rules'
 if (Test-Path -LiteralPath $rulesDir) {
     if (@(Get-ChildItem -LiteralPath $rulesDir -Filter '*.mdc' -File).Count -eq 0) {
-        $problems.Add("'.cursor/rules' neobsahuje žádné .mdc pravidlo")
+        $problems.Add((Get-Text 'verify.noRules'))
     }
 }
 
 $agentsDir = Join-Path $layerDir '.cursor/agents'
 if (Test-Path -LiteralPath $agentsDir) {
     if (@(Get-ChildItem -LiteralPath $agentsDir -Filter '*.md' -File).Count -eq 0) {
-        $problems.Add("'.cursor/agents' neobsahuje žádného subagenta")
+        $problems.Add((Get-Text 'verify.noAgents'))
     }
 }
 
 if ($problems.Count -gt 0) {
-    Write-Host "Vrstva '$layerName' neprošla kontrolou:" -ForegroundColor Red
+    Write-Host (Get-Text 'verify.failed' @{ layer = $layerName }) -ForegroundColor Red
     $problems | ForEach-Object { Write-Host "  - $_" }
     exit 1
 }
 
-Write-Host "Vrstva '$layerName' je v pořádku (struktura i propojení instrukcí)." -ForegroundColor Green
+Write-Host (Get-Text 'verify.ok' @{ layer = $layerName }) -ForegroundColor Green
 exit 0

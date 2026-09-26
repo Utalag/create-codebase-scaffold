@@ -124,3 +124,45 @@ test('--dry-run nevytvoří cílovou složku', async () => {
   assert.ok(output.includes('Plán (dry-run)'));
   assert.ok(!fs.existsSync(target));
 });
+
+test('--lang en vygeneruje anglický scaffold i report', async () => {
+  const target = path.join(makeTempDir('scaffold-cli-'), 'en-app');
+  const output = await capture([target, '--preset', 'clean', '--tooling', 'node', '--lang', 'en', '-y']);
+
+  assert.ok(output.includes('Done'), output);
+  assert.ok(output.includes('Language:'), output);
+  assert.ok(readText(target, 'README.md').includes('A language-neutral'));
+  assert.ok(readText(target, 'AGENTS.md').includes('instructions for agents'));
+
+  const config = JSON.parse(readText(target, '.scaffold.json'));
+  assert.equal(config.lang, 'en');
+  assert.ok(fs.existsSync(path.join(target, 'scripts/locales/en.json')));
+  assert.ok(!fs.existsSync(path.join(target, 'scripts/locales/cs.json')));
+});
+
+test('--lang en přeloží nápovědu a seznam presetů', async () => {
+  const help = await capture(['--help', '--lang', 'en']);
+  assert.ok(help.includes('Usage:'));
+  assert.ok(help.includes('Non-destructive'));
+  assert.ok(!help.includes('Nedestruktivnost'));
+
+  const list = await capture(['--list', '--lang', 'en']);
+  assert.ok(list.includes('Available presets:'));
+  assert.ok(list.includes('Custom layer list'));
+});
+
+test('neplatný --lang skončí chybou', async () => {
+  await assert.rejects(() => capture(['x', '--lang', 'de', '-y']), /Neplatná hodnota pro --lang/);
+});
+
+test('chyby v EN režimu jsou anglicky', async () => {
+  await assert.rejects(
+    () => capture(['x', '--lang', 'en', '--layers', '---', '-y']),
+    /Invalid layer name/,
+  );
+  await assert.rejects(
+    () => capture(['x', '--lang', 'en', '--tooling', 'python', '-y']),
+    /Invalid value for --tooling/,
+  );
+  await assert.rejects(() => capture(['x', '--lang', 'en', '--agets', 'cursor', '-y']), /Unknown option/);
+});

@@ -1,0 +1,31 @@
+# Pipeline definition of layer __LAYER__.
+#
+# GitHub Actions loads workflows exclusively from the root .github/workflows/.
+# This file is the source of truth for the layer and is consumed by the root ci.yml.
+# It is runnable only when the layer is opened as a standalone repository.
+
+name: __LAYER_SLUG__
+
+on:
+  workflow_dispatch:
+
+jobs:
+  layer:
+    name: Layer __LAYER__
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify the layer structure and configuration
+        uses: ./src/__LAYER__/.github/actions/setup-layer
+<!--#if tooling_pwsh-->
+
+      - name: Layer tests
+        shell: pwsh
+        run: ./scripts/test-layer.ps1 -Layer __LAYER__
+<!--#endif-->
+<!--#if tooling_node-->
+
+      - name: Layer tests
+        run: node scripts/test-layer.mjs --layer __LAYER__
+<!--#endif-->

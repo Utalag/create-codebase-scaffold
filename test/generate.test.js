@@ -47,7 +47,7 @@ test('matice preset × tooling × machinery generuje konzistentní projekt', () 
           'docs/README.md',
           'docs/layers.md',
           'scripts/README.md',
-          'scripts/README.cs.md',
+          'scripts/locales/cs.json',
           'scripts/layer-presets.json',
           scripts.newLayer,
           scripts.verifyLayer,
@@ -162,6 +162,90 @@ test('--no-ci vynechá CI workflow', () => {
   assert.ok(!exists(target, '.github/workflows/ci.yml'));
 });
 
+test('generování v angličtině přeloží celý scaffold', () => {
+  const { target } = generate({
+    presetId: 'clean',
+    lang: 'en',
+    tooling: 'node',
+    machinery: 'full',
+    agents: ['cursor', 'copilot', 'claude'],
+  });
+
+  const config = JSON.parse(readText(target, '.scaffold.json'));
+  assert.equal(config.lang, 'en');
+
+  // Jen zvolený katalog skriptů.
+  assert.ok(exists(target, 'scripts/locales/en.json'));
+  assert.ok(!exists(target, 'scripts/locales/cs.json'));
+
+  // Klíčové soubory jsou anglicky a neobsahují české zbytky.
+  const checks = [
+    ['README.md', 'A language-neutral', 'vrstvený'],
+    ['AGENTS.md', 'instructions for agents', 'instrukce'],
+    ['.gitignore', '# Editors', 'Editory'],
+    ['src/AGENTS.md', 'shared rules for all layers', 'společná pravidla'],
+    ['docs/README.md', 'Project documentation', 'Projektová dokumentace'],
+    ['docs/layers.md', 'May depend on', 'Vrstvy projektu'],
+    ['docs/layers.md', 'must not import', 'nesmí importovat'],
+    ['docs/agent-config.md', 'source of truth', 'zdroj pravdy'],
+    ['src/Domain/AGENTS.md', 'Layer responsibility', 'Odpovědnost vrstvy'],
+    ['src/Domain/README.md', 'Purpose', 'Účel'],
+    ['src/Domain/docs/decisions/0001-record-architecture-decisions.md', 'Context', 'Kontext'],
+    ['scripts/README.md', '# Scripts', 'Skripty'],
+    ['.cursor/rules/00-project.mdc', 'Global project rules', 'Globální pravidla'],
+    ['src/Domain/.cursor/rules/standards.mdc', 'layer standards', 'standardy vrstvy'],
+    ['.github/copilot-instructions.md', 'instructions for GitHub Copilot', 'instrukce pro'],
+    ['CLAUDE.md', 'Guidance for Claude', 'Pokyny pro Claude'],
+    ['src/Domain/.cursor/agents/dev.md', 'Specialist for layer', 'Specialista na vrstvu'],
+  ];
+
+  for (const [relative, expected, forbidden] of checks) {
+    const text = readText(target, relative);
+    assert.ok(text.includes(expected), `${relative}: chybí '${expected}'`);
+    assert.ok(!text.includes(forbidden), `${relative}: zůstala čeština '${forbidden}'`);
+  }
+
+  // Layer presets i README skriptů nesmí nést české markery.
+  assert.ok(!readText(target, 'scripts/layer-presets.json').includes('DOPLŇ:'));
+  assert.ok(!readText(target, 'scripts/layer-presets.json').includes('Čistá business logika'));
+
+  assert.deepEqual(unresolvedTokenFiles(target), []);
+});
+
+test('neznámá vrstva v EN dostane markery TODO', () => {
+  const { target } = generate({ presetId: 'custom', layers: ['Domain', 'Audit', 'Shared'], lang: 'en' });
+  const agents = readText(target, 'src/Audit/AGENTS.md');
+
+  assert.ok(agents.includes('TODO:'));
+  assert.ok(!agents.includes('DOPLŇ:'));
+});
+
+test('vygenerované skripty mluví anglicky v EN projektu', () => {
+  const { target } = generate({
+    presetId: 'vertical-slice',
+    lang: 'en',
+    tooling: 'node',
+    machinery: 'lean',
+    agents: ['cursor'],
+  });
+
+  const run = (script, args = []) =>
+    spawnSync(process.execPath, [path.join(target, script), ...args], {
+      cwd: target,
+      encoding: 'utf8',
+    });
+
+  const verify = run('scripts/verify-layer.mjs', ['--layer', 'Shared']);
+  assert.equal(verify.status, 0, verify.stdout + verify.stderr);
+  assert.ok(verify.stdout.includes('is fine'), verify.stdout);
+  assert.ok(!verify.stdout.includes('je v pořádku'), verify.stdout);
+
+  const layerTest = run('scripts/test-layer.mjs', ['--layer', 'Shared']);
+  assert.equal(layerTest.status, 0, layerTest.stdout + layerTest.stderr);
+  assert.ok(layerTest.stdout.includes('no test runner'), layerTest.stdout);
+});
+
+
 test('lean režim nikde neodkazuje na sync zrcadlo', () => {
   const { target } = generate({
     presetId: 'clean',
@@ -172,7 +256,9 @@ test('lean režim nikde neodkazuje na sync zrcadlo', () => {
 
   // Implementace skriptů samozřejmě obsahují názvy příkazů — jde o obsah dokumentace.
   const isScriptImplementation = (relative) =>
-    /^scripts\/[^/]+\.(mjs|ps1)$/.test(relative) || relative.startsWith('scripts/lib/');
+    /^scripts\/[^/]+\.(mjs|ps1)$/.test(relative) ||
+    relative.startsWith('scripts/lib/') ||
+    relative.startsWith('scripts/locales/');
 
   for (const relative of walkFiles(target)) {
     if (isScriptImplementation(relative)) continue;

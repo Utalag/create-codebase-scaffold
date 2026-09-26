@@ -42,13 +42,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'lib/i18n.ps1')
 . (Join-Path $PSScriptRoot 'lib/layer-map.ps1')
 
 $root = Split-Path -Parent $PSScriptRoot
 $layer = ConvertTo-PascalCase -Value $Name
 
 if (-not (Get-ActiveLayerDir -Root $root -Name $layer)) {
-    Write-Error "Vrstva '$layer' není aktivní v src/."
+    Write-Error (Get-Text 'common.error' @{ message = (Get-Text 'delete.notActive' @{ layer = $layer }) })
     exit 1
 }
 
@@ -57,14 +58,14 @@ $apply = $Yes -and -not $DryRun
 if (-not $apply) {
     $slug = Get-LayerSlug -Value $layer
     Write-Host ""
-    Write-Host "Plán (dry-run) — vyřazení vrstvy '$layer':"
-    Write-Host "  - Přejmenovat složku:  src/$layer -> src/$($RetiredPrefix)$layer"
-    Write-Host "  - Zapsat poznámku:     src/$($RetiredPrefix)$layer/RETIRED.md"
-    Write-Host '  - Odebrat z mapy:      .scaffold.json (layers)'
-    Write-Host "  - Odstranit artefakty: .cursor/rules/$slug.mdc, .cursor/agents/$slug-*, .cursor/skills/$slug-*, .cursor/rules/generated/$slug"
-    Write-Host "  - Vyčistit zmínky:     $($MapFiles -join ', ') a AGENTS.md ostatních vrstev"
+    Write-Host (Get-Text 'delete.planHeader' @{ layer = $layer })
+    Write-Host "  - " -NoNewline; Write-Host (Get-Text 'map.delete.planRename' @{ old = $layer; retired = ($RetiredPrefix + $layer) })
+    Write-Host "  - " -NoNewline; Write-Host (Get-Text 'map.delete.planNote' @{ retired = ($RetiredPrefix + $layer) })
+    Write-Host "  - " -NoNewline; Write-Host (Get-Text 'map.delete.planConfig')
+    Write-Host "  - " -NoNewline; Write-Host (Get-Text 'map.delete.planArtifacts' @{ slug = $slug })
+    Write-Host "  - " -NoNewline; Write-Host (Get-Text 'map.delete.planCleanup' @{ files = ($MapFiles -join ', ') })
     Write-Host ""
-    Write-Host 'Nic se nezměnilo. Spusť s -Yes pro provedení (obsah složky zůstane).'
+    Write-Host (Get-Text 'delete.planFooter')
     exit 0
 }
 
@@ -72,7 +73,7 @@ try {
     $result = Invoke-DeleteLayer -Root $root -Layer $layer
 }
 catch {
-    Write-Error $_.Exception.Message
+    Write-Error (Get-Text 'common.error' @{ message = $_.Exception.Message })
     exit 1
 }
 
@@ -80,19 +81,19 @@ if ((Read-ScaffoldConfig -Root $root).machinery -eq 'full') {
     $syncScript = Join-Path $PSScriptRoot 'sync-agent-config.ps1'
     if (Test-Path -LiteralPath $syncScript) {
         Write-Host ""
-        Write-Host 'Synchronizuji agentní konfiguraci do root .cursor/...'
+        Write-Host (Get-Text 'delete.syncing')
         & $syncScript
-        if (-not $?) { Write-Error 'Synchronizace selhala.'; exit 1 }
+        if (-not $?) { Write-Error (Get-Text 'delete.syncFailed' @{ code = $LASTEXITCODE }); exit 1 }
     }
 }
 
 Write-Host ""
-Write-Host "Vrstva '$($result.Layer)' byla vyřazena (soft retire):"
-Write-Host "  Složka:      src/$($result.RetiredDir) (obsah zachován)"
-Write-Host "  Poznámka:    src/$($result.RetiredDir)/RETIRED.md"
-$mapNote = if ($result.ConfigUpdated) { 'aktualizováno' } else { 'bez změny' }
-Write-Host "  Mapa:        .scaffold.json $mapNote"
-Write-Host "  Artefakty:   odstraněno $($result.RemovedArtifacts.Count) z root .cursor/"
+Write-Host (Get-Text 'delete.resultHeader' @{ layer = $result.Layer })
+Write-Host (Get-Text 'delete.resultFolder' @{ dir = "src/$($result.RetiredDir)" })
+Write-Host (Get-Text 'delete.resultNote' @{ dir = "src/$($result.RetiredDir)" })
+$mapNote = if ($result.ConfigUpdated) { Get-Text 'config.updated' } else { Get-Text 'config.unchanged' }
+Write-Host (Get-Text 'delete.resultConfig' @{ state = $mapNote })
+Write-Host (Get-Text 'delete.resultArtifacts' @{ count = $result.RemovedArtifacts.Count })
 Write-Host ""
-Write-Host 'Vrstva už není aktivní. Hard delete (smazání složky) proveď ručně, pokud ji nechceš archivovat.'
+Write-Host (Get-Text 'delete.footer')
 Write-Host ""

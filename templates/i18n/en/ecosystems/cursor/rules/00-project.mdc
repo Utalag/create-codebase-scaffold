@@ -1,0 +1,29 @@
+---
+description: "__PROJECT_NAME__ - global project rules"
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Global project rules
+
+The source of truth for instructions is `AGENTS.md` (root), `src/AGENTS.md` and
+the `AGENTS.md` of the individual layers. This rule is just a brief reminder, not
+a replacement.
+
+## Layers and dependency direction
+
+Layers: __LAYER_LIST__
+
+In particular, the following is forbidden:
+
+__DEPENDENCY_RULES__
+
+## Conventions
+
+- A new layer is created with the script: `__NEW_LAYER_CMD__`
+- Layer verification: `__VERIFY_CMD__`
+- Layer tests: `__TEST_CMD__`
+<!--#if full-->
+- After changing `src/<Layer>/.cursor/` run `__SYNC_CMD__`.
+- Never edit `.cursor/rules/generated/**` — it is generated.
+<!--#endif-->

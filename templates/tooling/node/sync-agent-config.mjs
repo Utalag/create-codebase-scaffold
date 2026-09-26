@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isActiveLayerName, layerSlug, parseArgs, projectRoot, toLf, walkFiles, writeText } from './lib/util.mjs';
+import { t } from './lib/i18n.mjs';
 
 /**
  * Synchronizuje agentní konfiguraci vrstev z src/<Layer>/.cursor/ do root .cursor/.
@@ -190,27 +191,36 @@ if (checkOnly) {
   const problems = [];
 
   if (missing.length > 0) {
-    problems.push(`Chybějící generované soubory (${missing.length}):`, ...missing.map((p) => `  - ${p}`));
+    problems.push(
+      t('sync.missing', { count: missing.length }),
+      ...missing.map((p) => `  - ${p}`),
+    );
   }
 
   if (changed.length > 0) {
-    problems.push(`Zastaralé generované soubory (${changed.length}):`, ...changed.map((p) => `  - ${p}`));
+    problems.push(
+      t('sync.stale', { count: changed.length }),
+      ...changed.map((p) => `  - ${p}`),
+    );
   }
 
   if (orphans.length > 0) {
-    problems.push(`Osiřelé generované soubory (${orphans.length}):`, ...orphans.map((p) => `  - ${p}`));
+    problems.push(
+      t('sync.orphans', { count: orphans.length }),
+      ...orphans.map((p) => `  - ${p}`),
+    );
   }
 
   if (problems.length > 0) {
-    console.error('Agentní konfigurace NENÍ v souladu se zdroji ve vrstvách.');
+    console.error(t('sync.notInSync'));
     console.error('');
     for (const line of problems) console.error(line);
     console.error('');
-    console.error('Spusť: node scripts/sync-agent-config.mjs');
+    console.error(t('sync.runHint', { cmd: 'node scripts/sync-agent-config.mjs' }));
     process.exit(1);
   }
 
-  console.log(`Agentní konfigurace je v souladu (${expected.size} generovaných souborů).`);
+  console.log(t('sync.ok', { count: expected.size }));
   process.exit(0);
 }
 
@@ -237,7 +247,7 @@ for (const base of [path.join(cursorRoot, 'rules/generated'), path.join(cursorRo
     const entries = walkFiles(dir);
     if (entries.length === 0) {
       fs.rmSync(dir, { recursive: true, force: true });
-      console.log(`  remove ${path.basename(dir)}/ (prázdný)`);
+      console.log(t('sync.emptyDir', { name: path.basename(dir) }));
     }
   }
 }
@@ -266,7 +276,5 @@ if (existingManifest !== manifestContent) {
 }
 
 console.log('');
-console.log(
-  `Synchronizace dokončena: ${listLayerDirs().length} vrstev, ${expected.size} generovaných souborů.`,
-);
-console.log('Zdroj pravdy: src/<Layer>/.cursor/ | Generováno: .cursor/ (needitovat)');
+console.log(t('sync.done', { layers: listLayerDirs().length, files: expected.size }));
+console.log(t('sync.sourceNote'));

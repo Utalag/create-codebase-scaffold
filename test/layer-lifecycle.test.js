@@ -189,3 +189,33 @@ test('pwsh new-layer sám synchronizuje (parita s node)', { skip: !HAS_PWSH }, (
   assert.equal(check.status, 0, check.stdout + check.stderr);
   assert.ok(exists(target, '.cursor/agents/billing-dev.md'));
 });
+
+test('EN projekt: pwsh skripty mluví anglicky a čistí anglické odkazy', { skip: !HAS_PWSH }, () => {
+  const { target } = generate({
+    presetId: 'clean',
+    lang: 'en',
+    tooling: 'pwsh',
+    machinery: 'full',
+    agents: ['cursor'],
+  });
+
+  const verify = runPwsh(target, 'scripts/verify-layer.ps1', ['-Layer', 'Domain']);
+  assert.equal(verify.status, 0, verify.stdout + verify.stderr);
+  assert.match(verify.stdout, /is fine/);
+  assert.ok(!verify.stdout.includes('je v pořádku'));
+
+  const del = runPwsh(target, 'scripts/delete-layer.ps1', ['-Name', 'Application', '-Yes']);
+  assert.equal(del.status, 0, del.stdout + del.stderr);
+  assert.match(del.stdout, /soft retire/);
+  assertSoftRetired(target, 'Application');
+
+  const layers = readText(target, 'docs/layers.md');
+  assert.ok(!layers.includes('`Application`'), 'EN docs stále zmiňuje Application');
+  assert.ok(layers.includes('May depend on'), 'EN tabulka vrstev chybí');
+  assert.ok(!layers.includes('``Domain``'), 'EN pravidla mají zdvojené backticky');
+
+  const rename = runPwsh(target, 'scripts/rename-layer.ps1', ['-Name', 'Presentation', '-To', 'Ui', '-Yes']);
+  assert.equal(rename.status, 0, rename.stdout + rename.stderr);
+  assert.match(rename.stdout, /was renamed to/);
+  assertRenamed(target, 'Presentation', 'Ui');
+});

@@ -46,6 +46,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'lib/i18n.ps1')
 . (Join-Path $PSScriptRoot 'lib/layer-map.ps1')
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -53,7 +54,7 @@ $oldLayer = ConvertTo-PascalCase -Value $Name
 $newLayer = ConvertTo-PascalCase -Value $To
 
 if (-not (Get-ActiveLayerDir -Root $root -Name $oldLayer)) {
-    Write-Error "Vrstva '$oldLayer' není aktivní v src/."
+    Write-Error (Get-Text 'common.error' @{ message = (Get-Text 'rename.notActive' @{ layer = $oldLayer }) })
     exit 1
 }
 
@@ -61,13 +62,13 @@ $apply = $Yes -and -not $DryRun
 
 if (-not $apply) {
     Write-Host ""
-    Write-Host "Plán (dry-run) — přejmenování vrstvy '$oldLayer' na '$newLayer':"
-    Write-Host "  - Přejmenovat složku:  src/$oldLayer -> src/$newLayer"
-    Write-Host '  - Aktualizovat mapu:   .scaffold.json (layers)'
-    Write-Host '  - Přepsat zmínky:      všechny projektové soubory (název, slug i titulek)'
-    Write-Host '  - Přejmenovat artefakty: .cursor/rules/<slug>.mdc, .cursor/agents/<slug>-*, .cursor/skills/<slug>-*'
+    Write-Host (Get-Text 'rename.planHeader' @{ old = $oldLayer; new = $newLayer })
+    Write-Host "  - " -NoNewline; Write-Host (Get-Text 'map.rename.planRename' @{ old = $oldLayer; new = $newLayer })
+    Write-Host "  - " -NoNewline; Write-Host (Get-Text 'map.rename.planConfig')
+    Write-Host "  - " -NoNewline; Write-Host (Get-Text 'map.rename.planMentions')
+    Write-Host "  - " -NoNewline; Write-Host (Get-Text 'map.rename.planArtifacts')
     Write-Host ""
-    Write-Host 'Nic se nezměnilo. Spusť s -Yes pro provedení.'
+    Write-Host (Get-Text 'rename.planFooter')
     exit 0
 }
 
@@ -75,7 +76,7 @@ try {
     $result = Invoke-RenameLayer -Root $root -OldName $oldLayer -NewName $newLayer
 }
 catch {
-    Write-Error $_.Exception.Message
+    Write-Error (Get-Text 'common.error' @{ message = $_.Exception.Message })
     exit 1
 }
 
@@ -83,19 +84,19 @@ if ((Read-ScaffoldConfig -Root $root).machinery -eq 'full') {
     $syncScript = Join-Path $PSScriptRoot 'sync-agent-config.ps1'
     if (Test-Path -LiteralPath $syncScript) {
         Write-Host ""
-        Write-Host 'Synchronizuji agentní konfiguraci do root .cursor/...'
+        Write-Host (Get-Text 'rename.syncing')
         & $syncScript
-        if (-not $?) { Write-Error 'Synchronizace selhala.'; exit 1 }
+        if (-not $?) { Write-Error (Get-Text 'rename.syncFailed' @{ code = $LASTEXITCODE }); exit 1 }
     }
 }
 
 Write-Host ""
-Write-Host "Vrstva '$($result.OldLayer)' byla přejmenována na '$($result.NewLayer)':"
-Write-Host "  Složka:      src/$($result.OldLayer) -> src/$($result.NewLayer)"
-$mapNote = if ($result.ConfigUpdated) { 'aktualizováno' } else { 'bez změny' }
-Write-Host "  Mapa:        .scaffold.json $mapNote"
-Write-Host "  Zmínky:      přepsáno v $($result.TouchedFiles) souborech"
-Write-Host "  Artefakty:   přejmenováno $($result.RenamedArtifacts.Count) v root .cursor/"
+Write-Host (Get-Text 'rename.resultHeader' @{ old = $result.OldLayer; new = $result.NewLayer })
+Write-Host (Get-Text 'rename.resultFolder' @{ old = $result.OldLayer; new = $result.NewLayer })
+$mapNote = if ($result.ConfigUpdated) { Get-Text 'config.updated' } else { Get-Text 'config.unchanged' }
+Write-Host (Get-Text 'rename.resultConfig' @{ state = $mapNote })
+Write-Host (Get-Text 'rename.resultMentions' @{ count = $result.TouchedFiles })
+Write-Host (Get-Text 'rename.resultArtifacts' @{ count = $result.RenamedArtifacts.Count })
 Write-Host ""
-Write-Host 'Zkontroluj `src/AGENTS.md` a `docs/layers.md`, že nový název sedí i v ručních úpravách.'
+Write-Host (Get-Text 'rename.footer')
 Write-Host ""

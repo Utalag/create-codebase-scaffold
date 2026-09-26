@@ -9,7 +9,9 @@
 > zatím není vydaná.
 
 Generátor jazykově neutrálního, vrstveného scaffoldu připraveného pro vývoj
-řízený AI agenty.
+řízený AI agenty. Scaffold se generuje ve zvoleném jazyce — `cs` (výchozí) nebo
+`en` — a to včetně README, instrukcí pro agenty, skills, dokumentace i výstupu
+skriptů projektu.
 
 Do zvolené složky vygeneruje **čistý projekt**: vrstvy v `src/`, guardrails pro
 agenty (`AGENTS.md`, `.cursor/`), skripty pro správu vrstev, dokumentaci a CI.
@@ -32,13 +34,16 @@ Podrobný postup (včetně `npx`, globální instalace, ověření a odinstalace
 ## Použití
 
 ```bash
-# interaktivní průvodce
+# interaktivní průvodce (první otázka je jazyk scaffoldu)
 node bin/create.js my-app
 
 # neinteraktivně
 node bin/create.js my-api --preset hexagonal --tooling node
 node bin/create.js app --layers Domain,Application,Adapters,Shared \
   --machinery full --agents cursor,copilot,claude
+
+# anglický scaffold i průvodce
+node bin/create.js my-app --lang en --preset clean
 ```
 
 Až bude balíček publikovaný, bude fungovat i `npx create-codebase-scaffold my-app`
@@ -48,6 +53,7 @@ se stejnými volbami.
 
 | Volba | Hodnoty | Výchozí |
 | --- | --- | --- |
+| `--lang` | `cs`, `en` | `cs` (interaktivně se ptá jako první) |
 | `--preset` | `clean`, `hexagonal`, `layered`, `vertical-slice`, `custom` | `clean` |
 | `--layers` | volný seznam PascalCase vrstev, přebíjí preset | — |
 | `--tooling` | `node`, `pwsh` | `node` |
@@ -95,7 +101,7 @@ a testovací skripty vygenerovaného projektu jsou striktně read-only.
   a `.github/`.
 - `scripts/` — `new-layer`, `verify-layer`, `test-layer`, `delete-layer`,
   `rename-layer`, `sync-agent-config` (u `full`), šablona vrstvy a guardrails;
-  plus `README.md` (EN) a `README.cs.md` (CZ).
+  plus `README.md` a `locales/<lang>.json` ve zvoleném jazyce.
 - Životní cyklus vrstev: `new-layer` založí vrstvu a sám synchronizuje mapu
   (u `full`); `rename-layer` vrstvu přejmenuje včetně odkazů a zrcadel;
   `delete-layer` ji **nedestruktivně vyřadí** (prefix `_retired-`, obsah zůstává).

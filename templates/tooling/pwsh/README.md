@@ -16,7 +16,7 @@ pwsh -File scripts/new-layer.ps1 -Name Billing
 - The layer is created in `src/<Name>/` with its full anatomy.
 - Guardrails and dependency direction come from the layer archetype in
   `scripts/layer-presets.json`. A known archetype gets concrete guardrails;
-  an unknown one gets a generic set with `DOPLŇ:` markers you must replace.
+  an unknown one gets a generic set with `TODO:` markers you must replace.
 - The layer is added to the layer map in `.scaffold.json`.
 - `-Force` overwrites existing files. Without it, existing files are never
   touched — the script only adds what is missing.
@@ -75,7 +75,7 @@ pwsh -File scripts/verify-layer.ps1 -Layer Billing
 ```
 
 Read-only. Checks the layer anatomy, that `AGENTS.md` links to `src/AGENTS.md`,
-has a `## Guardrails` section, and contains no unfilled `DOPLŇ:` markers.
+has a `## Guardrails` section, and contains no unfilled `TODO:` markers.
 Exits non-zero on problems. When `.scaffold.json` says `full`, it also checks
 the layer's `.cursor/` and `.github/`. Retired layers (`_retired-*`) are never
 treated as active.

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parseArgs, projectRoot, readProjectConfig, toPascalCase } from './lib/util.mjs';
 import { applyRename, describeRename, findActiveLayerDir } from './lib/layer-map.mjs';
+import { t } from './lib/i18n.mjs';
 
 /**
  * Přejmenuje aktivní vrstvu atomicky: složku na disku i všechny odkazy v mapě.
@@ -23,16 +24,15 @@ import { applyRename, describeRename, findActiveLayerDir } from './lib/layer-map
  *   node scripts/rename-layer.mjs --name Billing --to Invoicing --dry-run
  *   node scripts/rename-layer.mjs --name Billing --to Invoicing --yes
  */
+const USAGE = 'node scripts/rename-layer.mjs --name Billing --to Invoicing --yes';
+
 const args = parseArgs(process.argv.slice(2));
 const inputName = typeof args.name === 'string' ? args.name : args._[0];
 const inputTarget = typeof args.to === 'string' ? args.to : args._[1];
 const dryRun = args['dry-run'] === true || !(args.yes === true || args.y === true);
 
 if (!inputName || !inputTarget) {
-  console.error(
-    'Chyba: chybí název vrstvy nebo nový název. ' +
-      'Použití: node scripts/rename-layer.mjs --name Billing --to Invoicing --yes',
-  );
+  console.error(t('rename.argsMissing', { usage: USAGE }));
   process.exit(1);
 }
 
@@ -40,7 +40,7 @@ const oldLayer = toPascalCase(inputName);
 const newLayer = toPascalCase(inputTarget);
 
 if (!findActiveLayerDir(oldLayer)) {
-  console.error(`Chyba: vrstva '${oldLayer}' není aktivní v src/.`);
+  console.error(t('rename.notActive', { layer: oldLayer }));
   process.exit(1);
 }
 
@@ -49,15 +49,15 @@ if (dryRun) {
   try {
     plan = describeRename(projectRoot, oldLayer, newLayer);
   } catch (error) {
-    console.error(`Chyba: ${error.message}`);
+    console.error(t('common.error', { message: error.message }));
     process.exit(1);
   }
 
   console.log('');
-  console.log(`Plán (dry-run) — přejmenování vrstvy '${oldLayer}' na '${newLayer}':`);
+  console.log(t('rename.planHeader', { old: oldLayer, new: newLayer }));
   for (const line of plan) console.log(`  - ${line}`);
   console.log('');
-  console.log('Nic se nezměnilo. Spusť s --yes pro provedení.');
+  console.log(t('rename.planFooter'));
   process.exit(0);
 }
 
@@ -65,20 +65,22 @@ let result;
 try {
   result = applyRename(projectRoot, oldLayer, newLayer);
 } catch (error) {
-  console.error(`Chyba: ${error.message}`);
+  console.error(t('common.error', { message: error.message }));
   process.exit(1);
 }
 
 runSyncIfFull();
 
+const configState = t(result.configUpdated ? 'config.updated' : 'config.unchanged');
+
 console.log('');
-console.log(`Vrstva '${result.oldLayer}' byla přejmenována na '${result.newLayer}':`);
-console.log(`  Složka:      src/${result.oldLayer} -> src/${result.newLayer}`);
-console.log(`  Mapa:        .scaffold.json ${result.configUpdated ? 'aktualizováno' : 'bez změny'}`);
-console.log(`  Zmínky:      přepsáno v ${result.touchedFiles} souborech`);
-console.log(`  Artefakty:   přejmenováno ${result.renamedArtifacts.length} v root .cursor/`);
+console.log(t('rename.resultHeader', { old: result.oldLayer, new: result.newLayer }));
+console.log(t('rename.resultFolder', { old: result.oldLayer, new: result.newLayer }));
+console.log(t('rename.resultConfig', { state: configState }));
+console.log(t('rename.resultMentions', { count: result.touchedFiles }));
+console.log(t('rename.resultArtifacts', { count: result.renamedArtifacts.length }));
 console.log('');
-console.log('Zkontroluj `src/AGENTS.md` a `docs/layers.md`, že nový název sedí i v ručních úpravách.');
+console.log(t('rename.footer'));
 console.log('');
 
 function runSyncIfFull() {
@@ -88,10 +90,10 @@ function runSyncIfFull() {
   if (!fs.existsSync(syncScript)) return;
 
   console.log('');
-  console.log('Synchronizuji agentní konfiguraci do root .cursor/...');
+  console.log(t('rename.syncing'));
   const sync = spawnSync(process.execPath, [syncScript], { cwd: projectRoot, stdio: 'inherit' });
   if (sync.status !== 0) {
-    console.error(`Chyba: synchronizace selhala (exit ${sync.status ?? 1}).`);
+    console.error(t('rename.syncFailed', { code: sync.status ?? 1 }));
     process.exit(sync.status ?? 1);
   }
 }

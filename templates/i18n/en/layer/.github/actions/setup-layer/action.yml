@@ -1,0 +1,28 @@
+name: Setup __LAYER_TITLE__ layer
+description: Verifies the structure and agent configuration of layer __LAYER__.
+
+runs:
+  using: composite
+  steps:
+    - name: Verify the layer structure and configuration
+<!--#if tooling_pwsh-->
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $verify = Join-Path $env:GITHUB_WORKSPACE 'scripts/verify-layer.ps1'
+        if (Test-Path -LiteralPath $verify) {
+          & $verify -Layer '__LAYER__'
+        }
+        else {
+          Write-Host "scripts/verify-layer.ps1 is not available (standalone layer) - skipping the structural check."
+        }
+<!--#endif-->
+<!--#if tooling_node-->
+      shell: bash
+      run: |
+        if [ -f scripts/verify-layer.mjs ]; then
+          node scripts/verify-layer.mjs --layer '__LAYER__'
+        else
+          echo "scripts/verify-layer.mjs is not available (standalone layer) - skipping the structural check."
+        fi
+<!--#endif-->

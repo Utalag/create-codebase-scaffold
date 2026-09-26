@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { isActiveLayerName, parseArgs, projectRoot, resolveLayerDir } from './lib/util.mjs';
+import { t } from './lib/i18n.mjs';
 
 /**
  * Spustí testy dané vrstvy.
@@ -17,39 +18,37 @@ import { isActiveLayerName, parseArgs, projectRoot, resolveLayerDir } from './li
  *
  * Použití: node scripts/test-layer.mjs --layer Domain
  */
+const USAGE = 'node scripts/test-layer.mjs --layer Domain';
+
 const args = parseArgs(process.argv.slice(2));
 const layerName = typeof args.layer === 'string' ? args.layer : args._[0];
 
 if (!layerName) {
-  console.error('Chyba: chybí název vrstvy. Použití: node scripts/test-layer.mjs --layer Domain');
+  console.error(t('test.nameMissing', { usage: USAGE }));
   process.exit(1);
 }
 
 const layerDir = resolveLayerDir(layerName);
 if (!layerDir) {
-  console.error(`Chyba: vrstva '${layerName}' neexistuje v src/.`);
+  console.error(t('test.layerMissing', { layer: layerName }));
   process.exit(1);
 }
 
 const resolvedName = path.basename(layerDir);
 
 if (!isActiveLayerName(resolvedName)) {
-  console.error(
-    `Chyba: '${resolvedName}' není aktivní vrstva. Vyřazené vrstvy (prefix '_retired-') se netestují.`,
-  );
+  console.error(t('test.notActive', { layer: resolvedName }));
   process.exit(1);
 }
 
 const runner = path.join(layerDir, 'tests', 'run.mjs');
 
 if (!fs.existsSync(runner)) {
-  console.log(
-    `Vrstva '${resolvedName}' nemá testovací runner (src/${resolvedName}/tests/run.mjs). Přeskakuji.`,
-  );
+  console.log(t('test.noRunner', { layer: resolvedName, runner: `src/${resolvedName}/tests/run.mjs` }));
   process.exit(0);
 }
 
-console.log(`Testuji vrstvu '${resolvedName}'...`);
+console.log(t('test.testing', { layer: resolvedName }));
 
 const result = spawnSync(process.execPath, [runner, '--layer', resolvedName], {
   cwd: projectRoot,
@@ -57,9 +56,9 @@ const result = spawnSync(process.execPath, [runner, '--layer', resolvedName], {
 });
 
 if (result.status !== 0) {
-  console.error(`Testy vrstvy '${resolvedName}' selhaly (exit ${result.status ?? 1}).`);
+  console.error(t('test.failed', { layer: resolvedName, code: result.status ?? 1 }));
   process.exit(result.status ?? 1);
 }
 
-console.log(`Testy vrstvy '${resolvedName}' prošly.`);
+console.log(t('test.passed', { layer: resolvedName }));
 process.exit(0);
